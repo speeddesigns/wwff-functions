@@ -1,8 +1,3 @@
-//used in company files
-import { get } from 'https';
-import { load } from 'cheerio';
-import { saveJobs } from './db.js';
-
 import { json } from 'body-parser';
 import express from 'express';
 const app = express();

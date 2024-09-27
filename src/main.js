@@ -1,4 +1,3 @@
-import { json } from 'body-parser';
 import express from 'express';
 const app = express();
 
@@ -6,7 +5,8 @@ import fetchWaymoJobs from './companies/waymo.js';
 // const fetchTeslaJobs = require('./companies/tesla.js');
 // const fetchLucidJobs = require('./companies/lucid.js');
 
-app.use(json());  // To parse JSON messages from Pub/Sub
+// Use express's built-in body parser for JSON
+app.use(express.json());  // No need for body-parser
 
 // Route for checking server status
 app.get('/', (req, res) => {

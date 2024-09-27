@@ -1,12 +1,17 @@
-const express = require('express');
-const bodyParser = require('body-parser');
+//used in company files
+import { get } from 'https';
+import { load } from 'cheerio';
+import { saveJobs } from '../db';
+
+import express from 'express';
+import { json } from 'body-parser';
 const app = express();
 
-const fetchWaymoJobs = require('./companies/waymo').default;
+import fetchWaymoJobs from './companies/waymo';
 // const fetchTeslaJobs = require('./companies/tesla');
 // const fetchLucidJobs = require('./companies/lucid');
 
-app.use(bodyParser.json());  // To parse JSON messages from Pub/Sub
+app.use(json());  // To parse JSON messages from Pub/Sub
 
 // Route for checking server status
 app.get('/', (req, res) => {

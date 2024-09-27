@@ -1,8 +1,3 @@
-import { get } from 'https';
-import { load } from 'cheerio';
-import { saveJobs } from '../db';
-
-// Base URL for Waymo job listings
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 
 async function fetchWaymoJobs() {

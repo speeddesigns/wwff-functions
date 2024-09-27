@@ -1,4 +1,4 @@
-const { Firestore } = require('@google-cloud/firestore');
+import { Firestore } from '@google-cloud/firestore';
 const firestore = new Firestore();
 
 async function saveJobs(company, jobs) {
@@ -18,4 +18,4 @@ async function saveJobs(company, jobs) {
   console.log(`Saved ${jobs.length} jobs for ${company}`);
 }
 
-module.exports = { saveJobs };
+export default { saveJobs };

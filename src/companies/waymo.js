@@ -1,4 +1,4 @@
-import { fetchHTML } from '../utils/utilities.js';
+import { fetchHTML, saveJobsToFirestore } from '../utils/utilities.js';
 
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 

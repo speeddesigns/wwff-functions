@@ -3,7 +3,7 @@ import { load } from 'cheerio';
 import { saveJobs } from '../db.js';
 
 // Fetch HTML
-function fetchHTML(url) {
+export function fetchHTML(url) {   // Use named export
   console.log(`Fetching HTML from ${url}`);
   return new Promise((resolve, reject) => {
     get(url, (response) => {
@@ -22,9 +22,7 @@ function fetchHTML(url) {
 }
 
 // Save jobs to Firestore
-async function saveJobsToFirestore(company, jobs) {
+export async function saveJobsToFirestore(company, jobs) {   // Use named export
   console.log(`Saving jobs for ${company}...`);
   await saveJobs(company, jobs);
 }
-
-export default { fetchHTML, saveJobsToFirestore };

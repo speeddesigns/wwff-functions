@@ -2,19 +2,18 @@
     "name": "waymo-job-fetcher",
     "version": "1.0.0",
     "description": "Fetch and store job listings from multiple companies in Firestore",
-    "main": "src/main.js",  # Update this to the entry point (main.js)
+    "main": "src/main.js",
     "scripts": {
-      "start": "node src/main.js"  # Entry point for running the application
+      "start": "node src/main.js"
     },
     "dependencies": {
-      "@google-cloud/firestore": "^6.5.0",  # Firestore dependency
-      "cheerio": "^1.0.0-rc.10",            # Cheerio for HTML parsing
-      "express": "^4.17.1"                  # Express for server logic
+      "@google-cloud/firestore": "^6.5.0",
+      "cheerio": "^1.0.0-rc.10",
+      "express": "^4.17.1"
     },
     "engines": {
-      "node": ">=14.0.0"  # Make sure to use Node.js 14 or newer
+      "node": ">=14.0.0"
     },
     "author": "Your Name",
     "license": "MIT"
-  }
-  
+  }  

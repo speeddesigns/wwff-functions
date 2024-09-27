@@ -1,3 +1,5 @@
+//Waymo uses clinchtalent as of mid-2024
+
 const https = require('https');
 const cheerio = require('cheerio');
 const { saveJobs } = require('../db');

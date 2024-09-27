@@ -1,14 +1,19 @@
 {
-    "name": "cloud-run-firestore-shell",
+    "name": "waymo-job-fetcher",
     "version": "1.0.0",
-    "description": "Sample app that fetches from a URL, parses it, and stores in Firestore",
-    "main": "index.js",
+    "description": "A script to fetch job listings from Waymo and store them in Firestore",
+    "main": "waymo-job-fetcher.js",
     "scripts": {
-        "start": "node index.js"
+      "start": "node waymo-job-fetcher.js"
     },
     "dependencies": {
-        "express": "^4.17.1",
-        "axios": "^0.21.1",
-        "firebase-admin": "^9.11.0"
-    }
-}
+      "@google-cloud/firestore": "^6.5.0",
+      "cheerio": "^1.0.0-rc.10"
+    },
+    "engines": {
+      "node": ">=14.0.0"
+    },
+    "author": "Your Name",
+    "license": "MIT"
+  }
+  

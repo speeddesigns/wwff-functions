@@ -1,21 +1,17 @@
 import { Firestore } from '@google-cloud/firestore';
-const firestore = new Firestore();
 
-async function saveJobs(company, jobs) {
-  const collection = firestore.collection(`${company}_jobs`);
-  const batch = firestore.batch();
+// Initialize Firestore
+const db = new Firestore();
+
+// Function to save jobs
+export async function saveJobs(company, jobs) {
+  const batch = db.batch();
 
   jobs.forEach(job => {
-    const jobDoc = collection.doc(job.jobId);
-    batch.set(jobDoc, {
-      ...job,
-      foundAt: job.foundAt || new Date(),
-      updatedAt: new Date()
-    });
+    const jobRef = db.collection(company).doc(job.jobId);
+    batch.set(jobRef, job);
   });
 
   await batch.commit();
-  console.log(`Saved ${jobs.length} jobs for ${company}`);
+  console.log(`Saved ${jobs.length} jobs for ${company}.`);
 }
-
-export default { saveJobs };

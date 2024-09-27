@@ -13,14 +13,9 @@ steps:
       'run', 'deploy', 'waymo-job-fetcher',
       '--image', 'gcr.io/$PROJECT_ID/waymo-job-fetcher:$COMMIT_SHA',
       '--platform', 'managed',
-      '--region', 'YOUR_REGION',
+      '--region', 'us-west1',
       '--allow-unauthenticated'
     ]
 
-# Substitutions
 substitutions:
-  _PROJECT_ID: 'YOUR_PROJECT_ID'
-
-# Optional trigger settings (only run on main branch)
-trigger:
-  branch: '^main$'
+  _PROJECT_ID: $PROJECT_ID

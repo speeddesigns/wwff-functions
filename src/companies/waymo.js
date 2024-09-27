@@ -1,3 +1,5 @@
+const { fetchHTML, saveJobsToFirestore } = require('../utils/utilities'); // Adjust path to utilities.js
+
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 
 async function fetchWaymoJobs() {
@@ -13,45 +15,23 @@ async function fetchWaymoJobs() {
     console.log(`Parsed ${jobs.length} jobs from Waymo listings.`);
 
     // Save the parsed jobs to Firestore
-    await saveJobs('waymo', jobs);
-    console.log(`Saved ${jobs.length} jobs to Firestore for waymo.`);
+    await saveJobsToFirestore('waymo', jobs);
 
   } catch (error) {
     console.error('Error fetching jobs from Waymo:', error);
   }
 }
 
-function fetchHTML(url) {
-  console.log(`Fetching HTML from ${url}`);
-  return new Promise((resolve, reject) => {
-    get(url, (response) => {
-      let data = '';
-      response.on('data', chunk => data += chunk);
-      response.on('end', () => {
-        console.log('HTML fetching completed.');
-        resolve(data);
-      });
-      response.on('error', err => {
-        console.error('Error fetching HTML:', err);
-        reject(err);
-      });
-    });
-  });
-}
-
 function parseWaymoJobs(html) {
-  console.log('Parsing Waymo job listings...');
   const $ = load(html);
   const jobs = [];
-  
+
   $('.job-search-results-card').each((index, element) => {
     const jobId = $(element).find('.job-component-details').attr('class').split(' ').pop();
     const title = $(element).find('.job-search-results-card-title a').text().trim();
     const link = $(element).find('.job-search-results-card-title a').attr('href');
     const summary = $(element).find('.job-search-results-summary').text().trim();
     
-    console.log(`Parsed job ${index + 1}: ${title} (ID: ${jobId})`);
-
     jobs.push({
       jobId,
       title,
@@ -61,8 +41,7 @@ function parseWaymoJobs(html) {
     });
   });
 
-  console.log(`Finished parsing jobs. Total jobs found: ${jobs.length}`);
   return jobs;
 }
 
-export default fetchWaymoJobs;
+module.exports = fetchWaymoJobs;

@@ -3,6 +3,7 @@
     "version": "1.0.0",
     "description": "Fetch and store job listings from multiple companies in Firestore",
     "main": "src/main.js",
+    "type": "module",
     "scripts": {
       "start": "node src/main.js"
     },

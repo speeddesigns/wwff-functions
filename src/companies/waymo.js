@@ -1,4 +1,4 @@
-const { fetchHTML, saveJobsToFirestore } = require('../utils/utilities'); // Adjust path to utilities.js
+import { fetchHTML } from '../utils/utilities.js';
 
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 
@@ -44,4 +44,4 @@ function parseWaymoJobs(html) {
   return jobs;
 }
 
-module.exports = fetchWaymoJobs;
+export default fetchWaymoJobs;

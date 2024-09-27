@@ -1,6 +1,6 @@
-const { get } = require('https');
-const { load } = require('cheerio');
-const { saveJobs } = require('./db');
+import { get } from 'https';
+import { load } from 'cheerio';
+import { saveJobs } from './db';
 
 // Fetch HTML
 function fetchHTML(url) {
@@ -27,4 +27,4 @@ async function saveJobsToFirestore(company, jobs) {
   await saveJobs(company, jobs);
 }
 
-module.exports = { fetchHTML, saveJobsToFirestore };
+export default { fetchHTML, saveJobsToFirestore };

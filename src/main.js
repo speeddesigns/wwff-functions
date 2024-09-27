@@ -3,8 +3,8 @@ import { get } from 'https';
 import { load } from 'cheerio';
 import { saveJobs } from '../db';
 
-import express from 'express';
 import { json } from 'body-parser';
+import express from 'express';
 const app = express();
 
 import fetchWaymoJobs from './companies/waymo';

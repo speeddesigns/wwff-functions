@@ -12,14 +12,9 @@ async function fetchWaymoJobs() {
     const jobs = parseWaymoJobs(html);
     console.log(`Parsed ${jobs.length} jobs from Waymo listings.`);
 
-    // Log the jobs parsed for debugging
-    jobs.forEach((job, index) => {
-      console.log(`Job ${index + 1}: ${job.title} (ID: ${job.jobId})`);
-    });
-
     // Save the parsed jobs to Firestore
-    const savedJobs = await saveJobs('waymo', jobs);
-    console.log(`Saved ${savedJobs.length} jobs to Firestore for waymo.`);
+    await saveJobs('waymo', jobs);
+    console.log(`Saved ${jobs.length} jobs to Firestore for waymo.`);
 
   } catch (error) {
     console.error('Error fetching jobs from Waymo:', error);

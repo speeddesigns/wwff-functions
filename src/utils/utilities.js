@@ -1,5 +1,4 @@
 import { get } from 'https';
-import { load } from 'cheerio';
 import { saveJobs } from '../db.js';
 
 // Fetch HTML

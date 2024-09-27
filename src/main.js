@@ -1,9 +1,10 @@
 const express = require('express');
+const app = express();
+
 const fetchWaymoJobs = require('./companies/waymo');
 // const fetchTeslaJobs = require('./companies/tesla');
 // const fetchLucidJobs = require('./companies/lucid');
 
-const app = express();
 
 // Route for checking server status
 app.get('/', (req, res) => {
@@ -23,11 +24,11 @@ async function runJobFetchers() {
   console.log('Fetching jobs from Waymo...');
   await fetchWaymoJobs();
 
-  console.log('Fetching jobs from Tesla...');
-  await fetchTeslaJobs();
+//   console.log('Fetching jobs from Tesla...');
+//   await fetchTeslaJobs();
 
-  console.log('Fetching jobs from Lucid...');
-  await fetchLucidJobs();
+//   console.log('Fetching jobs from Lucid...');
+//   await fetchLucidJobs();
 
   console.log('All job-fetching tasks complete.');
 }

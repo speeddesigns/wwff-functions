@@ -19,7 +19,7 @@ app.post('/', async (req, res) => {
   
   try {
     // Start the job-fetching task
-    console.log('Fetching jobs from Waymo...');
+    console.log('Running fetchWaymoJobs()...');
     await fetchWaymoJobs();
 
     // Optionally fetch from Tesla or Lucid as needed

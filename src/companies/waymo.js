@@ -10,6 +10,7 @@ async function fetchWaymoJobs() {
     // Fetch HTML
     const html = await fetchHTML(baseWaymoJobsUrl);
     console.log('Fetched HTML successfully.');
+    console.log(html);
 
     // Parse jobs from HTML
     const jobs = parseWaymoJobs(html);
@@ -27,22 +28,26 @@ function parseWaymoJobs(html) {
   const $ = load(html);
   const jobs = [];
 
+  console.log('Parsing HTML for jobs...');
+  
   $('.job-search-results-card').each((index, element) => {
     const jobId = $(element).find('.job-component-details').attr('class').split(' ').pop();
     const title = $(element).find('.job-search-results-card-title a').text().trim();
     const link = $(element).find('.job-search-results-card-title a').attr('href');
-    const summary = $(element).find('.job-search-results-summary').text().trim();
+    // const summary = $(element).find('.job-search-results-summary').text().trim();
     
     jobs.push({
       jobId,
       title,
       link,
-      summary,
-      foundAt: new Date()
+      // summary,
+      foundAt: new Date(),
     });
   });
 
+  console.log(`Found ${jobs.length} jobs`);
   return jobs;
 }
+
 
 export default fetchWaymoJobs;

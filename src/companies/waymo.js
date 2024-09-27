@@ -1,33 +1,57 @@
-//Waymo uses clinchtalent as of mid-2024
-
-const https = require('https');
-const cheerio = require('cheerio');
-const { saveJobs } = require('../db');
+import { get } from 'https';
+import { load } from 'cheerio';
+import { saveJobs } from '../db';
 
 // Base URL for Waymo job listings
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 
 async function fetchWaymoJobs() {
-  const html = await fetchHTML(baseWaymoJobsUrl);
-  const jobs = parseWaymoJobs(html);
-  
-  // Save the parsed jobs to Firestore
-  await saveJobs('waymo', jobs);
+  try {
+    console.log(`Starting job fetching from: ${baseWaymoJobsUrl}`);
+    
+    // Fetch HTML
+    const html = await fetchHTML(baseWaymoJobsUrl);
+    console.log('Fetched HTML successfully.');
+
+    // Parse jobs from HTML
+    const jobs = parseWaymoJobs(html);
+    console.log(`Parsed ${jobs.length} jobs from Waymo listings.`);
+
+    // Log the jobs parsed for debugging
+    jobs.forEach((job, index) => {
+      console.log(`Job ${index + 1}: ${job.title} (ID: ${job.jobId})`);
+    });
+
+    // Save the parsed jobs to Firestore
+    const savedJobs = await saveJobs('waymo', jobs);
+    console.log(`Saved ${savedJobs.length} jobs to Firestore for waymo.`);
+
+  } catch (error) {
+    console.error('Error fetching jobs from Waymo:', error);
+  }
 }
 
 function fetchHTML(url) {
+  console.log(`Fetching HTML from ${url}`);
   return new Promise((resolve, reject) => {
-    https.get(url, (response) => {
+    get(url, (response) => {
       let data = '';
       response.on('data', chunk => data += chunk);
-      response.on('end', () => resolve(data));
-      response.on('error', err => reject(err));
+      response.on('end', () => {
+        console.log('HTML fetching completed.');
+        resolve(data);
+      });
+      response.on('error', err => {
+        console.error('Error fetching HTML:', err);
+        reject(err);
+      });
     });
   });
 }
 
 function parseWaymoJobs(html) {
-  const $ = cheerio.load(html);
+  console.log('Parsing Waymo job listings...');
+  const $ = load(html);
   const jobs = [];
   
   $('.job-search-results-card').each((index, element) => {
@@ -36,6 +60,8 @@ function parseWaymoJobs(html) {
     const link = $(element).find('.job-search-results-card-title a').attr('href');
     const summary = $(element).find('.job-search-results-summary').text().trim();
     
+    console.log(`Parsed job ${index + 1}: ${title} (ID: ${jobId})`);
+
     jobs.push({
       jobId,
       title,
@@ -44,8 +70,9 @@ function parseWaymoJobs(html) {
       foundAt: new Date()
     });
   });
-  
+
+  console.log(`Finished parsing jobs. Total jobs found: ${jobs.length}`);
   return jobs;
 }
 
-module.exports = fetchWaymoJobs;
+export default fetchWaymoJobs;

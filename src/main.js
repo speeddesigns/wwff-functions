@@ -2,7 +2,7 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const app = express();
 
-const fetchWaymoJobs = require('./companies/waymo');
+const fetchWaymoJobs = require('./companies/waymo').default;
 // const fetchTeslaJobs = require('./companies/tesla');
 // const fetchLucidJobs = require('./companies/lucid');
 

@@ -28,6 +28,11 @@ RUN apt-get update && apt-get install -y \
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 ENV PUPPETEER_CACHE_DIR=/puppeteer/cache
 
+# Verify Chrome installation
+RUN ls -l /usr/bin/google-chrome-stable || echo "Chrome is missing"
+
+# Create and check the cache directory
+RUN mkdir -p /puppeteer/cache && ls -l /puppeteer/cache || echo "Cache directory creation failed"
 
 # Set the working directory in the container
 WORKDIR /app
@@ -37,9 +42,6 @@ COPY package*.json ./
 
 # Install dependencies
 RUN npm install
-
-# Install Puppeteer and its Chrome dependencies
-RUN npm install puppeteer
 
 # Copy the rest of your application code to the working directory
 COPY . .

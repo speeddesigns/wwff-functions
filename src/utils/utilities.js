@@ -47,7 +47,7 @@ export function extractSalaryFromDescription(description) {
 export async function saveJobsToFirestore(company, jobs) {
   console.log(`Saving jobs for ${company}...`);
 
-  const collectionRef = collection(db, company);
+  const collectionRef = db.collection(company);
 
   for (const job of jobs) {
     try {

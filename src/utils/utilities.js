@@ -21,6 +21,7 @@ export function fetchHTML(url) {
       response.on('end', () => resolve(data));
       response.on('error', err => reject(err));
     });
+    console.log(`Fetched HTML from ${url}`);
   });
 }
 

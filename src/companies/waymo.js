@@ -75,8 +75,15 @@ function parseWaymoJobs(html) {
 // Fetch individual job details from job page
 async function fetchJobDetails(jobUrl) {
   const jobHtml = await fetchHTML(jobUrl);
+  console.log(jobHtml);  // Print the full HTML to inspect
+
   const jobDetailsJson = parseJobJsonLd(jobHtml);
-  console.log(jobDetailsJson);
+  console.log(jobDetailsJson);  // Log the extracted JSON-LD
+
+  if (!jobDetailsJson || !jobDetailsJson.description) {
+    console.error('Job details JSON or description is missing');
+    return null;
+  }
 
   const salaryData = extractSalaryFromDescription(jobDetailsJson.description);
   jobDetailsJson.salary = salaryData;

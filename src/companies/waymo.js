@@ -1,5 +1,5 @@
 import { load } from 'cheerio';
-import { fetchHTML } from '../utils/utilities.js';
+import { fetchHTML, extractSalaryFromDescription, saveJobsToFirestore } from '../utils/utilities.js';
 
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 
@@ -29,14 +29,17 @@ async function fetchWaymoJobs() {
       const jobs = parseWaymoJobs(pageHtml);
       console.log(`Parsed ${jobs.length} jobs from page ${page}.`);
 
-      // Add parsed jobs to the allJobs array
-      allJobs = allJobs.concat(jobs);
+      // For each job, fetch additional details from its individual page
+      for (const job of jobs) {
+        const jobDetails = await fetchJobDetails(job.link);  // Fetch extra job details
+        allJobs.push(jobDetails);
+      }
     }
 
     console.log(`Total jobs fetched: ${allJobs.length}`);
     
-    // Return the jobs instead of saving them here
-    return allJobs;
+    // Save the parsed jobs to Firestore
+    await saveJobsToFirestore('Waymo', allJobs);
 
   } catch (error) {
     console.error('Error fetching jobs from Waymo:', error);
@@ -57,29 +60,29 @@ function getPaginationInfo(html) {
   return { totalJobs, jobsPerPage };
 }
 
-function parseWaymoJobs(html) {
+// Helper function to fetch additional job details from the individual job page
+async function fetchJobDetails(jobUrl) {
+  console.log(`Fetching job details from: ${jobUrl}`);
+  const jobHtml = await fetchHTML(jobUrl);
+
+  // Parse the job details JSON from the <script> tag
+  const jobDetailsJson = parseJobJsonLd(jobHtml);
+
+  // Extract salary details using regex
+  const salaryData = extractSalaryFromDescription(jobDetailsJson.description);
+  jobDetailsJson.salary = salaryData;
+
+  console.log(`Extracted job details: ${JSON.stringify(jobDetailsJson)}`);
+  return jobDetailsJson;
+}
+
+// Helper function to parse the JSON-LD <script> tag containing job details
+function parseJobJsonLd(html) {
   const $ = load(html);
-  const jobs = [];
-
-  console.log('Parsing HTML for jobs...');
+  const ldJsonScript = $('script[type="application/ld+json"]').html();
+  const jobDetails = JSON.parse(ldJsonScript);
   
-  $('.job-search-results-card').each((index, element) => {
-    const classList = $(element).find('.job-component-details').attr('class').split(' ');
-    const jobId = classList.pop().split('-').pop(); // Extract just the job ID
-  
-    const title = $(element).find('.job-search-results-card-title a').text().trim();
-    const link = $(element).find('.job-search-results-card-title a').attr('href');
-    
-    jobs.push({
-      jobId,
-      title,
-      link,
-      foundAt: new Date(),
-    });
-  });
-
-  console.log(`Found ${jobs.length} jobs on this page.`);
-  return jobs;
+  return jobDetails;
 }
 
 export default fetchWaymoJobs;

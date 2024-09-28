@@ -9,10 +9,10 @@ const app = express();
 // Use express's built-in body parser for JSON
 app.use(express.json());  // No need for body-parser
 
-// Route for checking server status
-app.get('/', (req, res) => {
-  res.send('Job Fetcher is running');
-});
+// // Route for checking server status
+// app.get('/', (req, res) => {
+//   res.send('Job Fetcher is running');
+// });
 
 // Route to handle Pub/Sub-triggered job fetching (POST request)
 app.post('/', async (req, res) => {

@@ -1,5 +1,4 @@
 import { get } from 'https';
-import { saveJobs } from '../db.js';
 
 // Fetch HTML with headers (to mimic a browser request)
 export function fetchHTML(url) {   

@@ -1,5 +1,6 @@
 import { load } from 'cheerio';
-import { fetchHTML, saveJobsToFirestore, extractSalaryFromDescription } from '../utils/utilities.js';
+import { fetchHTML, extractSalaryFromDescription } from '../utils/utilities.js';
+import {  saveJobsToFirestore } from '../db.js';
 
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 

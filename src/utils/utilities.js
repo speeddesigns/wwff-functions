@@ -1,5 +1,6 @@
 import { get } from 'https';
 import { load } from 'cheerio';
+import { db } from '../db.js';
 import { collection, doc, setDoc } from 'firebase/firestore'; // Firebase Firestore methods
 
 // Fetch HTML with headers (to mimic a browser request)

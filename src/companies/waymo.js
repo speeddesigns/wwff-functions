@@ -1,9 +1,10 @@
 import { load } from 'cheerio';
-import { fetchHTML, extractSalaryFromDescription } from '../utils/utilities.js';
+import { fetchHTML, extractSalaryFromDescription, randomizedDelay } from '../utils/utilities.js';
+
+const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 
 // Fetch job listings from Waymo
 export async function fetchWaymoJobs() {
-  const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 
   try {
 
@@ -14,7 +15,7 @@ export async function fetchWaymoJobs() {
       const pageUrl = `${baseWaymoJobsUrl}?page=${page}`;
       console.log(`Fetching jobs from ${pageUrl}...`);
 
-      const pageHtml = await fetchHTML(pageUrl);
+      const pageHtml = await fetchHTML(pageUrl,baseWaymoJobsUrl);
       const jobs = parseWaymoJobs(pageHtml);
       console.log(`Parsed ${jobs.length} jobs from page ${page}.`);
 
@@ -24,12 +25,14 @@ export async function fetchWaymoJobs() {
         const jobDetails = await fetchJobDetails(job.link);
         console.log(`Fetched details for job ${job.jobId}.`);
         allJobs.push({ ...job, ...jobDetails });
+        await randomizedDelay(1, 3);
       }
 
       // Check if there are more pages
       const { totalPages } = getPaginationInfo(pageHtml);
       if (page >= totalPages) break;
       page++;
+      await randomizedDelay(1, 3);
     }
 
     return { jobs: allJobs, company: 'Waymo' };
@@ -74,7 +77,7 @@ function parseWaymoJobs(html) {
 
 // Fetch individual job details from job page
 async function fetchJobDetails(jobUrl) {
-  const jobHtml = await fetchHTML(jobUrl);
+  const jobHtml = await fetchHTML(jobUrl,baseWaymoJobsUrl);
   console.log(jobHtml);  // Print the full HTML to inspect
 
   const jobDetailsJson = parseJobJsonLd(jobHtml);

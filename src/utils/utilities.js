@@ -1,28 +1,46 @@
-import { get } from 'https';
+import puppeteer from 'puppeteer';
 
-// Fetch HTML from a URL with headers
-export function fetchHTML(url) {
-  console.log(`Fetching HTML from ${url}`);
+// Fetch HTML using Puppeteer
+export async function fetchHTML(url, referrerUrl) {
+  console.log(`Fetching HTML from ${url} using Puppeteer...`);
 
-  const options = {
-    headers: {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
-      'Connection': 'keep-alive',
-      'Upgrade-Insecure-Requests': '1'
-    }
-  };
-
-  return new Promise((resolve, reject) => {
-    get(url, options, response => {
-      let data = '';
-      response.on('data', chunk => data += chunk);
-      response.on('end', () => resolve(data));
-      response.on('error', err => reject(err));
+  let browser;
+  try {
+    // Launch Puppeteer in headless mode
+    browser = await puppeteer.launch({
+      headless: true,  // You can set this to 'false' to see the browser in action
+      args: ['--no-sandbox', '--disable-setuid-sandbox'],  // Required if running in environments like Cloud Run
     });
-    console.log(`Fetched HTML from ${url}`);
-  });
+
+    const page = await browser.newPage();
+
+    // Set user-agent to mimic a real browser
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+
+     // Set the referrer in the HTTP headers
+     await page.setExtraHTTPHeaders({
+      'Referer': referrerUrl || 'https://www.indeed.com',  // Use provided referrer or a default one
+    });
+
+    // Navigate to the URL
+    await page.goto(url, { waitUntil: 'networkidle2' });
+
+    // Wait for the necessary elements to load (adjust if needed)
+    await page.waitForSelector('body');  // Adjust the selector to match your requirements
+
+    // Get the page content
+    const html = await page.content();
+
+    console.log('HTML fetching completed.');
+    return html;
+  } catch (error) {
+    console.error('Error fetching HTML:', error);
+    throw error;
+  } finally {
+    if (browser) {
+      await browser.close();
+    }
+  }
 }
 
 // Extract salary data from the job description using regex
@@ -41,4 +59,13 @@ export function extractSalaryFromDescription(description) {
     const mid = (min + max) / 2;
     return { min, max, mid };
   }
+}
+
+// Randomized delay function with human-readable seconds input
+function randomizedDelay(minSeconds, maxSeconds) {
+  const minMilliseconds = minSeconds * 1000;
+  const maxMilliseconds = maxSeconds * 1000;
+  const delay = Math.floor(Math.random() * (maxMilliseconds - minMilliseconds + 1)) + minMilliseconds;
+  
+  return new Promise(resolve => setTimeout(resolve, delay));
 }

@@ -1,6 +1,5 @@
 import { get } from 'https';
 
-// Fetch HTML with headers (to mimic a browser request)
 export function fetchHTML(url) {   
   console.log(`Fetching HTML from ${url}`);
   

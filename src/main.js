@@ -1,3 +1,5 @@
+console.log(`Alright! I'm fired up! Let's do this thing!`);
+
 import express from 'express';
 import fetchWaymoJobs from './companies/waymo.js'; // Fetch Waymo jobs
 import { updateJobs } from './db.js'; // Assuming this handles DB operations

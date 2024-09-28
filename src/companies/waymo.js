@@ -1,5 +1,5 @@
 import { load } from 'cheerio';
-import { fetchHTML } from '../utils/utilities.js'; // Assuming fetchHTML is in utilities.js
+import { fetchHTML } from '../utils/utilities.js';
 
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 

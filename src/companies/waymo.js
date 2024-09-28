@@ -7,7 +7,7 @@ async function fetchWaymoJobs() {
   try {
     console.log(`Starting job fetching from: ${baseWaymoJobsUrl}`);
     
-    // Fetch the first page to get total jobs count and jobs per page
+    // Fetch the first page with headers
     const firstPageHtml = await fetchHTML(baseWaymoJobsUrl);
     console.log('Fetched first page HTML successfully.');
 
@@ -66,7 +66,6 @@ function parseWaymoJobs(html) {
     const jobId = $(element).find('.job-component-details').attr('class').split(' ').pop();
     const title = $(element).find('.job-search-results-card-title a').text().trim();
     const link = $(element).find('.job-search-results-card-title a').attr('href');
-    // const summary = $(element).find('.job-search-results-summary').text().trim();
     
     jobs.push({
       jobId,

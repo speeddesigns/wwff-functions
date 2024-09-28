@@ -1,11 +1,22 @@
 import { get } from 'https';
 import { saveJobs } from '../db.js';
 
-// Fetch HTML
-export function fetchHTML(url) {   // Use named export
+// Fetch HTML with headers (to mimic a browser request)
+export function fetchHTML(url) {   
   console.log(`Fetching HTML from ${url}`);
+  
+  const options = {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',  // Mimic a real browser
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+    }
+  };
+
   return new Promise((resolve, reject) => {
-    get(url, (response) => {
+    get(url, options, (response) => {
       let data = '';
       response.on('data', chunk => data += chunk);
       response.on('end', () => {
@@ -21,7 +32,7 @@ export function fetchHTML(url) {   // Use named export
 }
 
 // Save jobs to Firestore
-export async function saveJobsToFirestore(company, jobs) {   // Use named export
+export async function saveJobsToFirestore(company, jobs) {   
   console.log(`Saving jobs for ${company}...`);
   await saveJobs(company, jobs);
 }

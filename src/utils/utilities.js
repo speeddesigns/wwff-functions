@@ -34,5 +34,23 @@ export function fetchHTML(url) {
 // Save jobs to Firestore
 export async function saveJobsToFirestore(company, jobs) {   
   console.log(`Saving jobs for ${company}...`);
-  await saveJobs(company, jobs);
+
+  const collectionRef = collection(db, company); // Reference to the company-specific Firestore collection
+
+  for (const job of jobs) {
+    try {
+      const jobDocRef = doc(collectionRef, job.jobId);  // Use jobId as the document ID
+
+      // You can remove `jobId` from the object before saving, if needed
+      const { jobId, ...jobDataWithoutId } = job;
+
+      // Set the job document without the `jobId` field
+      await setDoc(jobDocRef, jobDataWithoutId, { merge: true });
+      console.log(`Job ${jobId} saved successfully.`);
+    } catch (error) {
+      console.error(`Error saving job ${job.jobId}:`, error);
+    }
+  }
+  
+  console.log(`Finished saving jobs for ${company}`);
 }

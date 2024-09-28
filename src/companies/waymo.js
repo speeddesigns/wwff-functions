@@ -36,7 +36,7 @@ async function fetchWaymoJobs() {
     console.log(`Total jobs fetched: ${allJobs.length}`);
 
     // Save the parsed jobs to Firestore
-    await saveJobsToFirestore('waymo', allJobs);
+    await saveJobsToFirestore('Waymo', allJobs);
 
   } catch (error) {
     console.error('Error fetching jobs from Waymo:', error);
@@ -63,7 +63,9 @@ function parseWaymoJobs(html) {
   console.log('Parsing HTML for jobs...');
   
   $('.job-search-results-card').each((index, element) => {
-    const jobId = $(element).find('.job-component-details').attr('class').split(' ').pop();
+    const classList = $(element).find('.job-component-details').attr('class').split(' ');
+    const jobId = classList.pop().split('-').pop(); // Extract just the job ID
+  
     const title = $(element).find('.job-search-results-card-title a').text().trim();
     const link = $(element).find('.job-search-results-card-title a').attr('href');
     
@@ -74,6 +76,7 @@ function parseWaymoJobs(html) {
       foundAt: new Date(),
     });
   });
+  
 
   console.log(`Found ${jobs.length} jobs on this page.`);
   return jobs;

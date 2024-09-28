@@ -26,6 +26,8 @@ RUN apt-get update && apt-get install -y \
 
 # Skip downloading Chromium since we'll use the system Chrome
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV PUPPETEER_CACHE_DIR=/puppeteer/cache
+
 
 # Set the working directory in the container
 WORKDIR /app

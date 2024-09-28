@@ -23,6 +23,9 @@ RUN apt-get update && apt-get install -y \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
+# Skip downloading Chromium since we'll use the system Chrome
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+
 # Set the working directory in the container
 WORKDIR /app
 

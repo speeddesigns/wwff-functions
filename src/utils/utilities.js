@@ -1,6 +1,5 @@
 import { get } from 'https';
 import { db } from '../db.js';
-import { collection, doc, setDoc } from '@google-cloud/firestore';
 
 // Fetch HTML from a URL with headers
 export function fetchHTML(url) {

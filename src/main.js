@@ -1,5 +1,3 @@
-console.log(`Alright! I'm fired up! Let's do this thing!`);
-
 import express from 'express';
 import fetchWaymoJobs from './companies/waymo.js'; // Fetch Waymo jobs
 import { updateJobs } from './db.js'; // Assuming this handles DB operations
@@ -9,10 +7,10 @@ const app = express();
 // Use express's built-in body parser for JSON
 app.use(express.json());  // No need for body-parser
 
-// // Route for checking server status
-// app.get('/', (req, res) => {
-//   res.send('Job Fetcher is running');
-// });
+// Route for checking server status
+app.get('/', (req, res) => {
+  res.send('Job Fetcher is running');
+});
 
 // Route to handle Pub/Sub-triggered job fetching (POST request)
 app.post('/', async (req, res) => {

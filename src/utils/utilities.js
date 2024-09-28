@@ -62,7 +62,7 @@ export function extractSalaryFromDescription(description) {
 }
 
 // Randomized delay function with human-readable seconds input
-function randomizedDelay(minSeconds, maxSeconds) {
+export function randomizedDelay(minSeconds, maxSeconds) {
   const minMilliseconds = minSeconds * 1000;
   const maxMilliseconds = maxSeconds * 1000;
   const delay = Math.floor(Math.random() * (maxMilliseconds - minMilliseconds + 1)) + minMilliseconds;

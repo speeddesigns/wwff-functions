@@ -76,6 +76,41 @@ function getPaginationInfo(html) {
   return { totalJobs, jobsPerPage };
 }
 
+function parseWaymoJobs(html) {
+  const $ = load(html);
+  const jobs = [];
+
+  console.log('Parsing HTML for jobs...');
+  
+  $('.job-search-results-card').each((index, element) => {
+    const classList = $(element).find('.job-component-details').attr('class').split(' ');
+    const jobId = classList.pop().split('-').pop(); // Extract just the job ID
+  
+    const title = $(element).find('.job-search-results-card-title a').text().trim();
+    const link = $(element).find('.job-search-results-card-title a').attr('href');
+    
+    // Example: Add fields only if present
+    const jobData = {
+      jobId,
+      title,
+      link,
+      foundAt: new Date(),  // Always include this field
+    };
+
+    // Add optional fields only if they exist
+    const employmentType = $(element).find('.employment-type').text().trim();  // Adjust selector as needed
+    if (employmentType) jobData.employmentType = employmentType;
+
+    const jobLocation = extractJobLocation();  // Placeholder for actual location extraction logic
+    if (jobLocation.length) jobData.jobLocation = jobLocation;
+
+    jobs.push(jobData);
+  });
+
+  console.log(`Found ${jobs.length} jobs on this page.`);
+  return jobs;
+}
+
 async function fetchJobDetails(jobUrl) {
   console.log(`Fetching job details from: ${jobUrl}`);
   const jobHtml = await fetchHTML(jobUrl);  // Fetch the HTML of the job page

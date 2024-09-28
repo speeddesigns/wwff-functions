@@ -8,7 +8,8 @@ export async function fetchHTML(url, referrerUrl) {
   try {
     // Launch Puppeteer in headless mode
     browser = await puppeteer.launch({
-      headless: true,  // You can set this to 'false' to see the browser in action
+      headless: 'new',  // You can set this to 'false' to see the browser in action
+      executablePath: '/usr/bin/google-chrome-stable',  // Path to the Chrome executable
       args: ['--no-sandbox', '--disable-setuid-sandbox'],  // Required if running in environments like Cloud Run
     });
 

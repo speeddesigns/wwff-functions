@@ -17,11 +17,12 @@ RUN apt-get update && apt-get install -y \
     libxrandr2 \
     libxdamage1 \
     libgbm1 \
+    libgbm-dev \
+    libx11-xcb1 \
     xdg-utils \
     libgtk-3-0 \
-    --no-install-recommends \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/*
+    --no-install-recommends && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Skip downloading Chromium since we'll use the system Chrome
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true

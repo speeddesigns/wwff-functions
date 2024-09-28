@@ -1,5 +1,5 @@
-import { saveJobs } from '../db.js';
 import { load } from 'cheerio';
+import { fetchHTML } from '../utils/utilities.js'; // Assuming fetchHTML is in utilities.js
 
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 
@@ -34,12 +34,13 @@ async function fetchWaymoJobs() {
     }
 
     console.log(`Total jobs fetched: ${allJobs.length}`);
-
-    // Save the parsed jobs to Firestore
-    await saveJobs('Waymo', allJobs);
+    
+    // Return the jobs instead of saving them here
+    return allJobs;
 
   } catch (error) {
     console.error('Error fetching jobs from Waymo:', error);
+    throw error;  // Rethrow the error to let the caller handle it
   }
 }
 
@@ -76,7 +77,6 @@ function parseWaymoJobs(html) {
       foundAt: new Date(),
     });
   });
-  
 
   console.log(`Found ${jobs.length} jobs on this page.`);
   return jobs;

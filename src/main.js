@@ -1,9 +1,8 @@
 import express from 'express';
-const app = express();
+import fetchWaymoJobs from './companies/waymo.js'; // Fetch Waymo jobs
+import { updateJobs } from './db.js'; // Assuming this handles DB operations
 
-import fetchWaymoJobs from './companies/waymo.js';
-// const fetchTeslaJobs = require('./companies/tesla.js');
-// const fetchLucidJobs = require('./companies/lucid.js');
+const app = express();
 
 // Use express's built-in body parser for JSON
 app.use(express.json());  // No need for body-parser
@@ -18,19 +17,16 @@ app.post('/', async (req, res) => {
   console.log('Received Pub/Sub trigger');
   
   try {
-    // Start the job-fetching task
-    console.log('Running fetchWaymoJobs()...');
-    await fetchWaymoJobs();
+    // Fetch jobs from Waymo
+    console.log('Fetching jobs from Waymo...');
+    const waymoJobs = await fetchWaymoJobs();
 
-    // Optionally fetch from Tesla or Lucid as needed
-    // console.log('Fetching jobs from Tesla...');
-    // await fetchTeslaJobs();
-    
-    // console.log('Fetching jobs from Lucid...');
-    // await fetchLucidJobs();
-    
+    // Save or update jobs in Firestore
+    console.log('Updating jobs in Firestore...');
+    await updateJobs('Waymo', waymoJobs); // Pass the fetched jobs to be handled in the DB
+
     console.log('All job-fetching tasks complete.');
-    res.status(200).send('Job fetching completed successfully');
+    res.status(200).send('Job fetching and updating completed successfully');
   } catch (error) {
     console.error('Error fetching jobs:', error);
     res.status(500).send('Error fetching jobs');

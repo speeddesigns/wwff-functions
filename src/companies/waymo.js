@@ -7,21 +7,18 @@ const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 // Fetch job listings from Waymo
 async function fetchWaymoJobs() {
   try {
-    console.log(`Starting job fetching from: ${baseWaymoJobsUrl}`);
-
-    // Fetch the first page
-    const firstPageHtml = await fetchHTML(baseWaymoJobsUrl);
-    console.log('Fetched first page HTML successfully.');
-
-    const { totalJobs, jobsPerPage } = getPaginationInfo(firstPageHtml);
-    const totalPages = Math.ceil(totalJobs / jobsPerPage);
-
     let allJobs = [];
+    let page = 1;
+    let totalPages = 1; // Start with the assumption there is at least one page
 
-    for (let page = 1; page <= totalPages; page++) {
+    while (page <= totalPages) {
       const pageUrl = `${baseWaymoJobsUrl}?page=${page}`;
+      console.log(`Fetching jobs from page ${page}...`);
+      
       const pageHtml = await fetchHTML(pageUrl);
+      console.log(`Fetched HTML for page ${page}.`);
 
+      // Parse jobs from the current page
       const jobs = parseWaymoJobs(pageHtml);
       console.log(`Parsed ${jobs.length} jobs from page ${page}.`);
 
@@ -30,8 +27,19 @@ async function fetchWaymoJobs() {
         const jobDetails = await fetchJobDetails(job.link);
         allJobs.push({ ...job, ...jobDetails });
       }
+
+      // Extract pagination info on the first pass
+      if (page === 1) {
+        const { totalJobs, jobsPerPage } = getPaginationInfo(pageHtml);
+        totalPages = Math.ceil(totalJobs / jobsPerPage);
+        console.log(`Total jobs: ${totalJobs}, Jobs per page: ${jobsPerPage}, Total pages: ${totalPages}`);
+      }
+
+      // Move to the next page
+      page++;
     }
 
+    // Save all fetched jobs to Firestore
     await saveJobsToFirestore('Waymo', allJobs);
     console.log('Finished fetching and saving jobs from Waymo.');
   } catch (error) {

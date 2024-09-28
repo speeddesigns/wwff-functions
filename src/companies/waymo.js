@@ -97,13 +97,6 @@ function parseWaymoJobs(html) {
       foundAt: new Date(),  // Always include this field
     };
 
-    // Add optional fields only if they exist
-    const employmentType = $(element).find('.employment-type').text().trim();  // Adjust selector as needed
-    if (employmentType) jobData.employmentType = employmentType;
-
-    const jobLocation = extractJobLocation();  // Placeholder for actual location extraction logic
-    if (jobLocation.length) jobData.jobLocation = jobLocation;
-
     jobs.push(jobData);
   });
 

@@ -1,4 +1,4 @@
-import { fetchHTML, saveJobsToFirestore } from '../utils/utilities.js';
+import { saveJobs } from '../db.js';
 import { load } from 'cheerio';
 
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
@@ -36,7 +36,7 @@ async function fetchWaymoJobs() {
     console.log(`Total jobs fetched: ${allJobs.length}`);
 
     // Save the parsed jobs to Firestore
-    await saveJobsToFirestore('Waymo', allJobs);
+    await saveJobs('Waymo', allJobs);
 
   } catch (error) {
     console.error('Error fetching jobs from Waymo:', error);

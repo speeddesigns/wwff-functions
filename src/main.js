@@ -1,21 +1,21 @@
 import express from 'express';
-import fetchWaymoJobs from './companies/waymo.js'; // Fetch Waymo jobs
-import { updateJobs } from './db.js'; // Assuming this handles DB operations
+import fetchWaymoJobs from './companies/waymo.js';
+import { updateJobs } from './db.js';  // Database functions
 
 const app = express();
 
-// Use express's built-in body parser for JSON
-app.use(express.json());  // No need for body-parser
+// Middleware to parse JSON body in incoming requests
+app.use(express.json());
 
-// Route for checking server status
+// Health check endpoint
 app.get('/', (req, res) => {
   res.send('Job Fetcher is running');
 });
 
-// Route to handle Pub/Sub-triggered job fetching (POST request)
+// Pub/Sub-triggered job-fetching route (POST)
 app.post('/', async (req, res) => {
   console.log('Received Pub/Sub trigger');
-  
+
   try {
     // Fetch jobs from Waymo
     console.log('Fetching jobs from Waymo...');
@@ -23,13 +23,13 @@ app.post('/', async (req, res) => {
 
     // Save or update jobs in Firestore
     console.log('Updating jobs in Firestore...');
-    await updateJobs('Waymo', waymoJobs); // Pass the fetched jobs to be handled in the DB
+    await updateJobs('Waymo', waymoJobs);
 
     console.log('All job-fetching tasks complete.');
     res.status(200).send('Job fetching and updating completed successfully');
   } catch (error) {
-    console.error('Error fetching jobs:', error);
-    res.status(500).send('Error fetching jobs');
+    console.error('Error during job fetching or updating:', error);
+    res.status(500).send('Error fetching or updating jobs');
   }
 });
 

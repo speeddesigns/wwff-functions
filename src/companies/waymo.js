@@ -1,120 +1,88 @@
 import { load } from 'cheerio';
-import { fetchHTML, extractSalaryFromDescription, saveJobsToFirestore } from '../utils/utilities.js';
+import { fetchHTML, saveJobsToFirestore, extractSalaryFromDescription } from '../utils/utilities.js';
 
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 
+// Fetch job listings from Waymo
 async function fetchWaymoJobs() {
   try {
     console.log(`Starting job fetching from: ${baseWaymoJobsUrl}`);
-    
-    // Fetch the first page with headers
+
+    // Fetch the first page
     const firstPageHtml = await fetchHTML(baseWaymoJobsUrl);
     console.log('Fetched first page HTML successfully.');
 
-    // Extract total number of jobs and jobs per page from pagination
     const { totalJobs, jobsPerPage } = getPaginationInfo(firstPageHtml);
-    console.log(`Total jobs: ${totalJobs}, Jobs per page: ${jobsPerPage}`);
-
-    // Calculate the number of pages to fetch
     const totalPages = Math.ceil(totalJobs / jobsPerPage);
-    console.log(`Total pages to fetch: ${totalPages}`);
 
     let allJobs = [];
+
     for (let page = 1; page <= totalPages; page++) {
-      console.log(`Fetching jobs from page ${page}...`);
       const pageUrl = `${baseWaymoJobsUrl}?page=${page}`;
       const pageHtml = await fetchHTML(pageUrl);
 
-      // Parse jobs from HTML
       const jobs = parseWaymoJobs(pageHtml);
       console.log(`Parsed ${jobs.length} jobs from page ${page}.`);
 
-      // Fetch additional details for all jobs in parallel
-      const jobDetailsPromises = jobs.map(async (job) => {
-        try {
-          const jobDetails = await fetchJobDetails(job.link);  // Fetch extra job details
-          
-          // Merge job summary info with details
-          return { ...job, ...jobDetails };
-        } catch (error) {
-          console.error(`Error fetching details for job ${job.title}:`, error);
-          return null;  // Skip this job if details fetch fails
-        }
-      });
-
-      // Wait for all job details to be fetched
-      const detailedJobs = await Promise.all(jobDetailsPromises);
-
-      // Filter out any failed jobs (nulls)
-      const validJobs = detailedJobs.filter(job => job !== null);
-
-      // Add valid jobs to allJobs
-      allJobs = allJobs.concat(validJobs);
+      // Fetch additional details for each job
+      for (const job of jobs) {
+        const jobDetails = await fetchJobDetails(job.link);
+        allJobs.push({ ...job, ...jobDetails });
+      }
     }
 
-    console.log(`Total jobs fetched: ${allJobs.length}`);
-    
-    // Save the parsed jobs to Firestore
     await saveJobsToFirestore('Waymo', allJobs);
-
+    console.log('Finished fetching and saving jobs from Waymo.');
   } catch (error) {
     console.error('Error fetching jobs from Waymo:', error);
-    throw error;  // Rethrow the error to let the caller handle it
   }
 }
 
-// Helper function to extract pagination info
+// Extract pagination information from the HTML
 function getPaginationInfo(html) {
   const $ = load(html);
   const totalJobsText = $('.table-counts').text();
-  const totalJobsMatch = totalJobsText.match(/of\s+(\d+)\s+in/); // Extract total jobs
-  const jobsPerPageMatch = totalJobsText.match(/Displaying\s+(\d+)\s+&ndash;/); // Extract jobs per page
+  const totalJobsMatch = totalJobsText.match(/of\s+(\d+)\s+in/);
+  const jobsPerPageMatch = totalJobsText.match(/Displaying\s+(\d+)\s+&ndash;/);
 
   const totalJobs = totalJobsMatch ? parseInt(totalJobsMatch[1], 10) : 0;
-  const jobsPerPage = jobsPerPageMatch ? parseInt(jobsPerPageMatch[1], 10) : 30; // Default to 30 if not found
-
+  const jobsPerPage = jobsPerPageMatch ? parseInt(jobsPerPageMatch[1], 10) : 30;
+  
   return { totalJobs, jobsPerPage };
 }
 
+// Parse job listings from a page's HTML
 function parseWaymoJobs(html) {
   const $ = load(html);
   const jobs = [];
 
-  console.log('Parsing HTML for jobs...');
-  
   $('.job-search-results-card').each((index, element) => {
-    const classList = $(element).find('.job-component-details').attr('class').split(' ');
-    const jobId = classList.pop().split('-').pop(); // Extract just the job ID
-  
+    const jobId = $(element).find('.job-component-details').attr('class').split('-').pop();
     const title = $(element).find('.job-search-results-card-title a').text().trim();
     const link = $(element).find('.job-search-results-card-title a').attr('href');
-    
-    // Example: Add fields only if present
-    const jobData = {
-      jobId,
-      title,
-      link,
-      foundAt: new Date(),  // Always include this field
-    };
 
-    jobs.push(jobData);
+    jobs.push({ jobId, title, link });
   });
 
-  console.log(`Found ${jobs.length} jobs on this page.`);
   return jobs;
 }
 
+// Fetch individual job details from job page
 async function fetchJobDetails(jobUrl) {
-  console.log(`Fetching job details from: ${jobUrl}`);
-  const jobHtml = await fetchHTML(jobUrl);  // Fetch the HTML of the job page
-  const jobDetailsJson = parseJobJsonLd(jobHtml);  // Extract the JSON-LD data
+  const jobHtml = await fetchHTML(jobUrl);
+  const jobDetailsJson = parseJobJsonLd(jobHtml);
 
-  // Extract salary info from the description
   const salaryData = extractSalaryFromDescription(jobDetailsJson.description);
   jobDetailsJson.salary = salaryData;
 
-  console.log(`Extracted job details: ${JSON.stringify(jobDetailsJson)}`);
-  return jobDetailsJson;  // Return the detailed job data
+  return jobDetailsJson;
+}
+
+// Parse JSON-LD data from job page
+function parseJobJsonLd(html) {
+  const $ = load(html);
+  const ldJsonScript = $('script[type="application/ld+json"]').html();
+  return JSON.parse(ldJsonScript);
 }
 
 export default fetchWaymoJobs;

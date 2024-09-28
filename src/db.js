@@ -16,7 +16,12 @@ export async function fetchOpenJobs(company) {
 }
 
 // Update jobs by comparing with fetched jobs
-export async function updateJobs(company, fetchedJobs) {
+export async function updateJobs(company, fetchedJobs = []) {
+  if (!fetchedJobs || fetchedJobs.length === 0) {
+    console.log(`No jobs to update for ${company}`);
+    return;
+  }
+
   const batch = db.batch();
   const collectionRef = db.collection(company);
 
@@ -59,6 +64,7 @@ export async function updateJobs(company, fetchedJobs) {
   await batch.commit();
   console.log(`Processed ${jobsToAddOrUpdate.length} jobs (added/updated) and closed ${jobsToClose.length} jobs.`);
 }
+
 
 // Check if job details have changed
 function checkIfJobChanged(existingJob, newJob) {

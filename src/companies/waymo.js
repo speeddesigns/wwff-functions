@@ -63,7 +63,6 @@ async function fetchWaymoJobs() {
   }
 }
 
-
 // Helper function to extract pagination info
 function getPaginationInfo(html) {
   const $ = load(html);
@@ -88,19 +87,6 @@ async function fetchJobDetails(jobUrl) {
 
   console.log(`Extracted job details: ${JSON.stringify(jobDetailsJson)}`);
   return jobDetailsJson;  // Return the detailed job data
-}
-
-async function saveJobWithDetails(job) {
-  const jobDetails = await fetchJobDetails(job.link);
-  
-  // Merge basic job info with detailed job info
-  const fullJobData = {
-    ...job,  // Basic info (jobId, title, link)
-    ...jobDetails  // Detailed info (description, salary, etc.)
-  };
-
-  // Save the job data to Firestore
-  await saveJobsToFirestore('Waymo', [fullJobData]);
 }
 
 export default fetchWaymoJobs;

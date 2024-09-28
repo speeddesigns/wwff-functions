@@ -2,8 +2,6 @@ import { Firestore } from '@google-cloud/firestore';
 
 export const db = new Firestore();
 
-const db = new Firestore();
-
 // Fetch all open jobs for a company
 export async function fetchOpenJobs(company) {
   const collectionRef = db.collection(company);

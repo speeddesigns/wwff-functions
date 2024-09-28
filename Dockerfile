@@ -32,6 +32,9 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install
 
+# Install Puppeteer and its Chrome dependencies
+RUN npm install puppeteer
+
 # Copy the rest of your application code to the working directory
 COPY . .
 

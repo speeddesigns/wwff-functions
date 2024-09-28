@@ -1,3 +1,5 @@
+//test
+
 import express from 'express';
 import { fetchWaymoJobs } from './companies/waymo.js';
 import { updateJobs } from './db.js';  // Database functions

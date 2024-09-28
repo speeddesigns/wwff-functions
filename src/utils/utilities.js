@@ -1,5 +1,6 @@
 import { get } from 'https';
 import { load } from 'cheerio';
+import { collection, doc, setDoc } from 'firebase/firestore'; // Firebase Firestore methods
 
 // Fetch HTML with headers (to mimic a browser request)
 export function fetchHTML(url) {   
@@ -65,12 +66,25 @@ export async function saveJobsToFirestore(company, jobs) {
     try {
       const jobDocRef = doc(collectionRef, job.jobId);  // Use jobId as the document ID
 
-      // You can remove `jobId` from the object before saving, if needed
-      const { jobId, ...jobDataWithoutId } = job;
+      // Construct the job data object dynamically, adding only available fields
+      const jobData = {};
 
-      // Set the job document without the `jobId` field
-      await setDoc(jobDocRef, jobDataWithoutId, { merge: true });
-      console.log(`Job ${jobId} saved successfully.`);
+      if (job.title) jobData.title = job.title;
+      if (job.description) jobData.description = job.description;  // If description exists
+      if (job.datePosted) jobData.datePosted = job.datePosted;  // If datePosted exists
+      if (job.employmentType) jobData.employmentType = job.employmentType;  // If employmentType exists
+      if (job.validThrough) jobData.validThrough = job.validThrough;  // If validThrough exists
+      if (job.hiringOrganization && job.hiringOrganization.name) {
+        jobData.hiringOrganizationName = job.hiringOrganization.name;  // If hiring organization name exists
+      }
+      if (job.jobLocation && job.jobLocation.length) {
+        jobData.jobLocation = job.jobLocation;  // If jobLocation array exists and is not empty
+      }
+      jobData.foundAt = new Date();  // Always record when the job was found
+
+      // Set the job document without any missing fields
+      await setDoc(jobDocRef, jobData, { merge: true });
+      console.log(`Job ${job.jobId} saved successfully.`);
     } catch (error) {
       console.error(`Error saving job ${job.jobId}:`, error);
     }

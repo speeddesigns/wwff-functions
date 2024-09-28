@@ -29,11 +29,27 @@ async function fetchWaymoJobs() {
       const jobs = parseWaymoJobs(pageHtml);
       console.log(`Parsed ${jobs.length} jobs from page ${page}.`);
 
-      // For each job, fetch additional details from its individual page
-      for (const job of jobs) {
-        const jobDetails = await fetchJobDetails(job.link);  // Fetch extra job details
-        allJobs.push(jobDetails);
-      }
+      // Fetch additional details for all jobs in parallel
+      const jobDetailsPromises = jobs.map(async (job) => {
+        try {
+          const jobDetails = await fetchJobDetails(job.link);  // Fetch extra job details
+          
+          // Merge job summary info with details
+          return { ...job, ...jobDetails };
+        } catch (error) {
+          console.error(`Error fetching details for job ${job.title}:`, error);
+          return null;  // Skip this job if details fetch fails
+        }
+      });
+
+      // Wait for all job details to be fetched
+      const detailedJobs = await Promise.all(jobDetailsPromises);
+
+      // Filter out any failed jobs (nulls)
+      const validJobs = detailedJobs.filter(job => job !== null);
+
+      // Add valid jobs to allJobs
+      allJobs = allJobs.concat(validJobs);
     }
 
     console.log(`Total jobs fetched: ${allJobs.length}`);
@@ -46,6 +62,7 @@ async function fetchWaymoJobs() {
     throw error;  // Rethrow the error to let the caller handle it
   }
 }
+
 
 // Helper function to extract pagination info
 function getPaginationInfo(html) {
@@ -60,29 +77,30 @@ function getPaginationInfo(html) {
   return { totalJobs, jobsPerPage };
 }
 
-// Helper function to fetch additional job details from the individual job page
 async function fetchJobDetails(jobUrl) {
   console.log(`Fetching job details from: ${jobUrl}`);
-  const jobHtml = await fetchHTML(jobUrl);
+  const jobHtml = await fetchHTML(jobUrl);  // Fetch the HTML of the job page
+  const jobDetailsJson = parseJobJsonLd(jobHtml);  // Extract the JSON-LD data
 
-  // Parse the job details JSON from the <script> tag
-  const jobDetailsJson = parseJobJsonLd(jobHtml);
-
-  // Extract salary details using regex
+  // Extract salary info from the description
   const salaryData = extractSalaryFromDescription(jobDetailsJson.description);
   jobDetailsJson.salary = salaryData;
 
   console.log(`Extracted job details: ${JSON.stringify(jobDetailsJson)}`);
-  return jobDetailsJson;
+  return jobDetailsJson;  // Return the detailed job data
 }
 
-// Helper function to parse the JSON-LD <script> tag containing job details
-function parseJobJsonLd(html) {
-  const $ = load(html);
-  const ldJsonScript = $('script[type="application/ld+json"]').html();
-  const jobDetails = JSON.parse(ldJsonScript);
+async function saveJobWithDetails(job) {
+  const jobDetails = await fetchJobDetails(job.link);
   
-  return jobDetails;
+  // Merge basic job info with detailed job info
+  const fullJobData = {
+    ...job,  // Basic info (jobId, title, link)
+    ...jobDetails  // Detailed info (description, salary, etc.)
+  };
+
+  // Save the job data to Firestore
+  await saveJobsToFirestore('Waymo', [fullJobData]);
 }
 
 export default fetchWaymoJobs;

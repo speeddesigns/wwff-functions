@@ -1,29 +1,28 @@
 import { load } from 'cheerio';
 import { fetchHTML, extractSalaryFromDescription } from '../utils/utilities.js';
 
-const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
-
 // Fetch job listings from Waymo
 export async function fetchWaymoJobs() {
   const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 
   try {
-    console.log(`Starting job fetching from: ${baseWaymoJobsUrl}`);
 
     let allJobs = [];
     let page = 1;
 
     while (true) {
       const pageUrl = `${baseWaymoJobsUrl}?page=${page}`;
-      console.log(`Fetching jobs from page ${page}...`);
+      console.log(`Fetching jobs from ${pageUrl}...`);
 
       const pageHtml = await fetchHTML(pageUrl);
       const jobs = parseWaymoJobs(pageHtml);
       console.log(`Parsed ${jobs.length} jobs from page ${page}.`);
 
       // Fetch additional details for each job
+      console.log(`Fetching details for ${jobs.length} jobs...`);
       for (const job of jobs) {
         const jobDetails = await fetchJobDetails(job.link);
+        console.log(`Fetched details for job ${job.jobId}.`);
         allJobs.push({ ...job, ...jobDetails });
       }
 
@@ -57,6 +56,7 @@ function getPaginationInfo(html) {
 
 // Parse job listings from a page's HTML
 function parseWaymoJobs(html) {
+  console.log(`Parsing jobs...`)
   const $ = load(html);
   const jobs = [];
 
@@ -66,6 +66,7 @@ function parseWaymoJobs(html) {
     const link = $(element).find('.job-search-results-card-title a').attr('href');
 
     jobs.push({ jobId, title, link });
+    console.log(`Parsed job ${jobId}: ${title}, ${link}`)
   });
 
   return jobs;
@@ -75,9 +76,11 @@ function parseWaymoJobs(html) {
 async function fetchJobDetails(jobUrl) {
   const jobHtml = await fetchHTML(jobUrl);
   const jobDetailsJson = parseJobJsonLd(jobHtml);
+  console.log(jobDetailsJson);
 
   const salaryData = extractSalaryFromDescription(jobDetailsJson.description);
   jobDetailsJson.salary = salaryData;
+  console.log(jobDetailsJson.salary);
 
   return jobDetailsJson;
 }

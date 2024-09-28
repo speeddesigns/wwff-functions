@@ -18,7 +18,7 @@ app.post('/', async (req, res) => {
 
   try {
     // Fetch jobs from Waymo
-    console.log('Fetching jobs from Waymo...');
+    console.log('Starting job fetching for Waymo...');
     const { jobs, company } = await fetchWaymoJobs();
 
     // Save or update jobs in Firestore

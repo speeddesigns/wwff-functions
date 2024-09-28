@@ -1,5 +1,6 @@
 import { get } from 'https';
 import { db } from '../db.js';
+import { Firestore } from '@google-cloud/firestore';
 
 // Fetch HTML from a URL with headers
 export function fetchHTML(url) {
@@ -41,33 +42,4 @@ export function extractSalaryFromDescription(description) {
     const mid = (min + max) / 2;
     return { min, max, mid };
   }
-}
-
-// Save jobs to Firestore
-export async function saveJobsToFirestore(company, jobs) {
-  console.log(`Saving jobs for ${company}...`);
-
-  const collectionRef = db.collection(company);
-
-  for (const job of jobs) {
-    try {
-      const jobDocRef = doc(collectionRef, job.jobId);
-      const jobData = {
-        title: job.title,
-        description: job.description,
-        datePosted: job.datePosted,
-        employmentType: job.employmentType,
-        validThrough: job.validThrough,
-        hiringOrganizationName: job.hiringOrganization?.name,
-        jobLocation: job.jobLocation,
-        foundAt: new Date()
-      };
-
-      await setDoc(jobDocRef, jobData, { merge: true });
-      console.log(`Job ${job.jobId} saved successfully.`);
-    } catch (error) {
-      console.error(`Error saving job ${job.jobId}:`, error);
-    }
-  }
-  console.log(`Finished saving jobs for ${company}`);
 }

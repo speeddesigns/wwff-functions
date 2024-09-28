@@ -15,7 +15,7 @@ export async function fetchOpenJobs(company) {
   return openJobs;  // Returns an object mapping jobId to job data
 }
 
-// Update jobs by comparing with fetched jobs
+// Update jobs by comparing with fetched jobs and calling saveJobsToFirestore
 export async function updateJobs(company, fetchedJobs = []) {
   if (!fetchedJobs || fetchedJobs.length === 0) {
     console.log(`No jobs to update for ${company}`);
@@ -55,16 +55,45 @@ export async function updateJobs(company, fetchedJobs = []) {
   });
 
   // Add or update jobs in Firestore
-  jobsToAddOrUpdate.forEach(job => {
-    const jobRef = collectionRef.doc(job.jobId);
-    const { jobId, ...jobDataWithoutId } = job;
-    batch.set(jobRef, jobDataWithoutId, { merge: true });
-  });
+  await saveJobsToFirestore(company, jobsToAddOrUpdate, batch);
 
   await batch.commit();
   console.log(`Processed ${jobsToAddOrUpdate.length} jobs (added/updated) and closed ${jobsToClose.length} jobs.`);
 }
 
+// Save jobs to Firestore (with batch support)
+export async function saveJobsToFirestore(company, jobs, batch = null) {
+  console.log(`Saving jobs for ${company}...`);
+
+  const collectionRef = db.collection(company);
+
+  for (const job of jobs) {
+    try {
+      const jobDocRef = collectionRef.doc(job.jobId);  // Use Firestore collection
+      const jobData = {
+        title: job.title,
+        description: job.description,
+        datePosted: job.datePosted,
+        employmentType: job.employmentType,
+        validThrough: job.validThrough,
+        hiringOrganizationName: job.hiringOrganization?.name,
+        jobLocation: job.jobLocation,
+        foundAt: new Date(),
+      };
+
+      if (batch) {
+        batch.set(jobDocRef, jobData, { merge: true });  // Add to the batch if provided
+      } else {
+        await jobDocRef.set(jobData, { merge: true });  // Directly save if no batch
+      }
+      console.log(`Job ${job.jobId} saved successfully.`);
+    } catch (error) {
+      console.error(`Error saving job ${job.jobId}:`, error);
+    }
+  }
+
+  console.log(`Finished saving jobs for ${company}`);
+}
 
 // Check if job details have changed
 function checkIfJobChanged(existingJob, newJob) {

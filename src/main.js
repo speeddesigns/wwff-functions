@@ -1,5 +1,5 @@
 import express from 'express';
-import fetchWaymoJobs from './companies/waymo.js';
+import { fetchWaymoJobs } from './companies/waymo.js';
 import { updateJobs } from './db.js';  // Database functions
 
 const app = express();
@@ -19,11 +19,11 @@ app.post('/', async (req, res) => {
   try {
     // Fetch jobs from Waymo
     console.log('Fetching jobs from Waymo...');
-    const waymoJobs = await fetchWaymoJobs();
+    const { jobs, company } = await fetchWaymoJobs();
 
     // Save or update jobs in Firestore
-    console.log('Updating jobs in Firestore...');
-    await updateJobs('Waymo', waymoJobs);
+    console.log(`Updating jobs for ${company} in Firestore...`);
+    await updateJobs(company, jobs);
 
     console.log('All job-fetching tasks complete.');
     res.status(200).send('Job fetching and updating completed successfully');

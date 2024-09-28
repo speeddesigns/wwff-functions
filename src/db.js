@@ -15,7 +15,7 @@ export async function fetchOpenJobs(company) {
   return openJobs;  // Returns an object mapping jobId to job data
 }
 
-// Update jobs by comparing with fetched jobs and calling saveJobsToFirestore
+// Update jobs by comparing with fetched jobs
 export async function updateJobs(company, fetchedJobs = []) {
   if (!fetchedJobs || fetchedJobs.length === 0) {
     console.log(`No jobs to update for ${company}`);

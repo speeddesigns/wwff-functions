@@ -1,24 +1,23 @@
 import { load } from 'cheerio';
 import { fetchHTML, extractSalaryFromDescription } from '../utils/utilities.js';
-import {  saveJobsToFirestore } from '../db.js';
 
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 
 // Fetch job listings from Waymo
-async function fetchWaymoJobs() {
+export async function fetchWaymoJobs() {
+  const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
+
   try {
+    console.log(`Starting job fetching from: ${baseWaymoJobsUrl}`);
+
     let allJobs = [];
     let page = 1;
-    let totalPages = 1; // Start with the assumption there is at least one page
 
-    while (page <= totalPages) {
+    while (true) {
       const pageUrl = `${baseWaymoJobsUrl}?page=${page}`;
       console.log(`Fetching jobs from page ${page}...`);
-      
-      const pageHtml = await fetchHTML(pageUrl);
-      console.log(`Fetched HTML for page ${page}.`);
 
-      // Parse jobs from the current page
+      const pageHtml = await fetchHTML(pageUrl);
       const jobs = parseWaymoJobs(pageHtml);
       console.log(`Parsed ${jobs.length} jobs from page ${page}.`);
 
@@ -28,26 +27,21 @@ async function fetchWaymoJobs() {
         allJobs.push({ ...job, ...jobDetails });
       }
 
-      // Extract pagination info on the first pass
-      if (page === 1) {
-        const { totalJobs, jobsPerPage } = getPaginationInfo(pageHtml);
-        totalPages = Math.ceil(totalJobs / jobsPerPage);
-        console.log(`Total jobs: ${totalJobs}, Jobs per page: ${jobsPerPage}, Total pages: ${totalPages}`);
-      }
-
-      // Move to the next page
+      // Check if there are more pages
+      const { totalPages } = getPaginationInfo(pageHtml);
+      if (page >= totalPages) break;
       page++;
     }
 
-    // Save all fetched jobs to Firestore
-    await saveJobsToFirestore('Waymo', allJobs);
-    console.log('Finished fetching and saving jobs from Waymo.');
+    return { jobs: allJobs, company: 'Waymo' };
+
   } catch (error) {
     console.error('Error fetching jobs from Waymo:', error);
+    throw error;
   }
 }
 
-// Extract pagination information from the HTML
+// Helper function to extract pagination info
 function getPaginationInfo(html) {
   const $ = load(html);
   const totalJobsText = $('.table-counts').text();
@@ -56,8 +50,9 @@ function getPaginationInfo(html) {
 
   const totalJobs = totalJobsMatch ? parseInt(totalJobsMatch[1], 10) : 0;
   const jobsPerPage = jobsPerPageMatch ? parseInt(jobsPerPageMatch[1], 10) : 30;
-  
-  return { totalJobs, jobsPerPage };
+
+  const totalPages = Math.ceil(totalJobs / jobsPerPage);
+  return { totalJobs, jobsPerPage, totalPages };
 }
 
 // Parse job listings from a page's HTML
@@ -93,5 +88,3 @@ function parseJobJsonLd(html) {
   const ldJsonScript = $('script[type="application/ld+json"]').html();
   return JSON.parse(ldJsonScript);
 }
-
-export default fetchWaymoJobs;

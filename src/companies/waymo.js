@@ -91,7 +91,7 @@ async function captureWaymoOpenRoles() {
       const { totalPages } = getPaginationInfo(pageHtml);
       if (page >= totalPages) break;
       page++;
-      await randomizedDelay(5, 10);
+      await randomizedDelay(15, 30);
     }
 
     return { jobs: allJobs, company: 'Waymo' };
@@ -140,7 +140,7 @@ function parseWaymoJobs(html) {
 // Fetch individual job details from job page
 async function fetchJobDetails(jobUrl) {
   const jobHtml = await fetchHTML(jobUrl, baseWaymoJobsUrl,true);
-  console.log(jobHtml);  // Print the full HTML to inspect
+  // console.log(jobHtml);  // Print the full HTML to inspect
 
   const jobDetailsJson = parseJobJsonLd(jobHtml);
   console.log(jobDetailsJson);  // Log the extracted JSON-LD

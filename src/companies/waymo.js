@@ -30,7 +30,7 @@ export async function fetchWaymoJobs() {
           console.log(`Skipping job ${job.jobId} due to invalid details.`);
         }
 
-        await randomizedDelay(5,10);
+        await randomizedDelay(10,30);
       }
 
 
@@ -38,7 +38,7 @@ export async function fetchWaymoJobs() {
       const { totalPages } = getPaginationInfo(pageHtml);
       if (page >= totalPages) break;
       page++;
-      await randomizedDelay(5,10);
+      await randomizedDelay(10,30);
     }
 
     return { jobs: allJobs, company: 'Waymo' };

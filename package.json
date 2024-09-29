@@ -1,7 +1,7 @@
 {
   "name": "waymo-job-fetcher",
   "version": "1.0.0",
-  "description": "Fetch and store job listings from multiple companies in Firestore",
+  "description": "Fetch and store job listings",
   "main": "src/main.js",
   "type": "module",
   "scripts": {
@@ -12,7 +12,7 @@
     "axios": "^1.7.7",
     "cheerio": "^1.0.0",
     "express": "^4.17.1",
-    "firebase": "^9.0.0",
+    "firebase": "^9.0.0"
   },
   "engines": {
     "node": ">=14.0.0"

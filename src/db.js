@@ -6,12 +6,12 @@ export const db = new Firestore();
 export async function fetchOpenJobs(company) {
   console.log(`Fetching open jobs for ${company}...`);
 
-  const collectionRef = db.collection(company);
-  const querySnapshot = await collectionRef.where('open', '==', true).get();
+  const collectionRef = db.collection('Jobs');
+  const querySnapshot = await collectionRef.where('company', '==', company).where('open', '==', true).get();
 
   const openJobs = {};
   querySnapshot.forEach(doc => {
-    openJobs[doc.id] = doc.data();
+    openJobs[doc.data().jobId] = doc.data();
   });
   console.log(`Fetched ${Object.keys(openJobs).length} open jobs for ${company}`);
 
@@ -19,8 +19,8 @@ export async function fetchOpenJobs(company) {
 }
 
 // Update jobs by adding new roles, closing missing ones, and handling updates for job details
-export async function updateJobsWithOpenCloseLogic(fetchedJobs = []) {
-  console.log(`Checking jobs for updates...`);
+export async function updateJobsWithOpenCloseLogic(company, fetchedJobs = []) {
+  console.log(`Checking jobs for updates for ${company}...`);
 
   if (!fetchedJobs || fetchedJobs.length === 0) {
     console.log('No jobs fetched to update.');
@@ -28,8 +28,6 @@ export async function updateJobsWithOpenCloseLogic(fetchedJobs = []) {
   }
 
   const batch = db.batch();
-  const company = 'Waymo';  // Replace with dynamic company if needed
-  const collectionRef = db.collection(company);
 
   // Step 1: Fetch all currently open jobs from the database
   const openJobs = await fetchOpenJobs(company);
@@ -39,7 +37,7 @@ export async function updateJobsWithOpenCloseLogic(fetchedJobs = []) {
   for (const jobId in openJobs) {
     if (!fetchedJobIds.has(jobId)) {
       console.log(`Marking job ${jobId} as closed.`);
-      const jobRef = collectionRef.doc(jobId);
+      const jobRef = db.collection('Jobs').doc(openJobs[jobId].firestoreDocId);
       batch.update(jobRef, { open: false });
     }
   }
@@ -47,19 +45,25 @@ export async function updateJobsWithOpenCloseLogic(fetchedJobs = []) {
   // Step 3: Add new jobs to the database or update existing ones if details have changed
   fetchedJobs.forEach(job => {
     const existingJob = openJobs[job.jobId];
-    const jobRef = collectionRef.doc(job.jobId);
+    const jobRef = db.collection('Jobs').doc();
+
+    const jobData = {
+      ...job,
+      company,
+      open: true,
+    };
 
     if (existingJob) {
       // If the job exists, check if it has changed
       if (checkIfJobChanged(existingJob, job)) {
         console.log(`Updating job ${job.jobId}...`);
-        batch.set(jobRef, { ...job, open: true }, { merge: true });
+        batch.set(db.collection('Jobs').doc(existingJob.firestoreDocId), jobData, { merge: true });
       } else {
         console.log(`No changes detected for job ${job.jobId}.`);
       }
     } else {
       // New job, needs to be added
-      batch.set(jobRef, { ...job, open: true }, { merge: true });
+      batch.set(jobRef, jobData);
       console.log(`New job ${job.jobId} added.`);
     }
   });
@@ -78,23 +82,29 @@ function checkIfJobChanged(existingJob, newJob) {
          existingJob.compensation !== newJob.compensation;
 }
 
-
 // Fetch a specific job from the database
-export async function fetchJobFromDB(company, jobId) {
-  const docRef = db.collection(company).doc(jobId);
-  const doc = await docRef.get();
+export async function fetchJobFromDB(jobId) {
+  const collectionRef = db.collection('Jobs');
+  const querySnapshot = await collectionRef.where('jobId', '==', jobId).get();
 
-  if (!doc.exists) {
+  if (querySnapshot.empty) {
     console.log(`No job found for jobId: ${jobId}`);
     return null;
   }
 
-  return doc.data();  // Returns the job data
+  return querySnapshot.docs[0].data();  // Returns the job data
 }
 
 // Update job details in the database if they differ from the existing data
-export async function updateJobDetails(company, jobId, newDetails) {
-  const jobRef = db.collection(company).doc(jobId);
-  await jobRef.update(newDetails);
-  console.log(`Updated job details for jobId: ${jobId}`);
+export async function updateJobDetails(jobId, newDetails) {
+  const collectionRef = db.collection('Jobs');
+  const querySnapshot = await collectionRef.where('jobId', '==', jobId).get();
+
+  if (!querySnapshot.empty) {
+    const jobRef = querySnapshot.docs[0].ref;
+    await jobRef.update(newDetails);
+    console.log(`Updated job details for jobId: ${jobId}`);
+  } else {
+    console.log(`Job not found for jobId: ${jobId}`);
+  }
 }

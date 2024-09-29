@@ -40,11 +40,11 @@ export async function fetchWaymoJobs() {
         console.log(`Checking if details for job ${job.jobId} need updating...`);
         
         // Check if the details in the database differ from what we fetched
-        const existingJob = await fetchJobFromDB('Waymo', job.jobId);  // Get job from database (implement in db.js)
+        const existingJob = await fetchJobFromDB(job.jobId);  // Get job from database (implement in db.js)
         
         if (JSON.stringify(existingJob) !== JSON.stringify(jobDetails)) {
           console.log(`Updating details for job ${job.jobId}: ${job.title}`);
-          await updateJobDetails('Waymo', job.jobId, jobDetails);  // Update the database with new details
+          await updateJobDetails(job.jobId, jobDetails);  // Update the database with new details
         } else {
           console.log(`Details for job ${job.jobId} are already up to date.`);
         }

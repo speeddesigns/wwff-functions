@@ -1,0 +1,3 @@
+steps:
+- name: 'gcr.io/cloud-builders/gcloud'
+  args: ['functions', 'deploy', 'myFunction', '--runtime', 'nodejs18', '--trigger-http', '--source', '.']

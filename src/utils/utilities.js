@@ -1,46 +1,45 @@
-import puppeteer from 'puppeteer';
+import axios from 'axios';
+import * as cheerio from 'cheerio';
 
-// Fetch HTML using Puppeteer
-export async function fetchHTML(url, referrerUrl) {
-  console.log(`Fetching HTML from ${url} using Puppeteer...`);
+// Store headers for subsequent requests
+let storedHeaders = {};
 
-  let browser;
+// Fetch HTML using axios and cheerio
+export async function fetchHTML(url, referrerUrl, useStoredHeaders = false) {
+  console.log(`Fetching HTML from ${url} using axios...`);
+
   try {
-    // Launch Puppeteer in headless mode
-    browser = await puppeteer.launch({
-      headless: 'new',  // You can set this to 'false' to see the browser in action
-      executablePath: '/usr/bin/google-chrome-stable',  // Path to the Chrome executable
-      args: ['--no-sandbox', '--disable-setuid-sandbox'],  // Required if running in environments like Cloud Run
-    });
+    let headers = {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+      'Referer': referrerUrl || 'https://www.indeed.com',
+      'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': 'en-US,en;q=0.5',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Connection': 'keep-alive',
+      'Upgrade-Insecure-Requests': '1',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'same-origin',
+      'Sec-Fetch-User': '?1',
+      'Cache-Control': 'max-age=0',
+    };
 
-    const page = await browser.newPage();
+    // Use stored headers if requested
+    if (useStoredHeaders) {
+      headers = { ...headers, ...storedHeaders };
+    }
 
-    // Set user-agent to mimic a real browser
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36');
+    const response = await axios.get(url, { headers });
+    const html = response.data;
 
-     // Set the referrer in the HTTP headers
-     await page.setExtraHTTPHeaders({
-      'Referer': referrerUrl || 'https://www.indeed.com',  // Use provided referrer or a default one
-    });
-
-    // Navigate to the URL
-    await page.goto(url, { waitUntil: 'networkidle2' });
-
-    // Wait for the necessary elements to load (adjust if needed)
-    await page.waitForSelector('body');  // Adjust the selector to match your requirements
-
-    // Get the page content
-    const html = await page.content();
+    // Store received headers for future requests
+    storedHeaders = { ...storedHeaders, ...response.headers };
 
     console.log('HTML fetching completed.');
     return html;
   } catch (error) {
     console.error('Error fetching HTML:', error);
     throw error;
-  } finally {
-    if (browser) {
-      await browser.close();
-    }
   }
 }
 
@@ -67,6 +66,6 @@ export function randomizedDelay(minSeconds, maxSeconds) {
   const minMilliseconds = minSeconds * 1000;
   const maxMilliseconds = maxSeconds * 1000;
   const delay = Math.floor(Math.random() * (maxMilliseconds - minMilliseconds + 1)) + minMilliseconds;
-  
+
   return new Promise(resolve => setTimeout(resolve, delay));
 }

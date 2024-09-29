@@ -15,24 +15,30 @@ export async function fetchWaymoJobs() {
       const pageUrl = `${baseWaymoJobsUrl}?page=${page}`;
       console.log(`Fetching jobs from ${pageUrl}...`);
 
-      const pageHtml = await fetchHTML(pageUrl,baseWaymoJobsUrl);
+      const pageHtml = await fetchHTML(pageUrl, baseWaymoJobsUrl);
       const jobs = parseWaymoJobs(pageHtml);
       console.log(`Parsed ${jobs.length} jobs from page ${page}.`);
 
-      // Fetch additional details for each job
-      console.log(`Fetching details for ${jobs.length} jobs...`);
       for (const job of jobs) {
         const jobDetails = await fetchJobDetails(job.link);
-        console.log(`Fetched details for job ${job.jobId}.`);
-        allJobs.push({ ...job, ...jobDetails });
-        await randomizedDelay(1, 3);
+
+        // Check if jobDetails is valid before pushing
+        if (jobDetails && typeof jobDetails === 'object') {
+          allJobs.push({ ...job, ...jobDetails });
+          console.log(`Added job ${job.jobId}: ${job.title}`);
+        } else {
+          console.log(`Skipping job ${job.jobId} due to invalid details.`);
+        }
+
+        await randomizedDelay(5,10);
       }
+
 
       // Check if there are more pages
       const { totalPages } = getPaginationInfo(pageHtml);
       if (page >= totalPages) break;
       page++;
-      await randomizedDelay(1, 3);
+      await randomizedDelay(5,10);
     }
 
     return { jobs: allJobs, company: 'Waymo' };
@@ -77,7 +83,7 @@ function parseWaymoJobs(html) {
 
 // Fetch individual job details from job page
 async function fetchJobDetails(jobUrl) {
-  const jobHtml = await fetchHTML(jobUrl,baseWaymoJobsUrl);
+  const jobHtml = await fetchHTML(jobUrl, baseWaymoJobsUrl,true);
   console.log(jobHtml);  // Print the full HTML to inspect
 
   const jobDetailsJson = parseJobJsonLd(jobHtml);

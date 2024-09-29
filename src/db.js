@@ -18,93 +18,55 @@ export async function fetchOpenJobs(company) {
   return openJobs;  // Returns an object mapping jobId to job data
 }
 
-// Update jobs by comparing with fetched jobs
-export async function updateJobs(company, fetchedJobs = []) {
-  console.log(`Checking ${company} jobs for updates...`);
+// Update jobs by adding new roles, closing missing ones, and handling updates for job details
+export async function updateJobsWithOpenCloseLogic(fetchedJobs = []) {
+  console.log(`Checking jobs for updates...`);
 
   if (!fetchedJobs || fetchedJobs.length === 0) {
-    console.log(`No jobs to update for ${company}`);
+    console.log('No jobs fetched to update.');
     return;
   }
 
   const batch = db.batch();
+  const company = 'Waymo';  // Replace with dynamic company if needed
   const collectionRef = db.collection(company);
 
-  // Fetch open jobs from Firestore
-  console.log(`Fetching open jobs for ${company}...`);
-  const openJobsInFirestore = await fetchOpenJobs(company);
+  // Step 1: Fetch all currently open jobs from the database
+  const openJobs = await fetchOpenJobs(company);
 
-  const jobsToAddOrUpdate = [];
-  const jobsToClose = [];
+  // Step 2: Mark jobs that are no longer open
+  const fetchedJobIds = new Set(fetchedJobs.map(job => job.jobId));
+  for (const jobId in openJobs) {
+    if (!fetchedJobIds.has(jobId)) {
+      console.log(`Marking job ${jobId} as closed.`);
+      const jobRef = collectionRef.doc(jobId);
+      batch.update(jobRef, { open: false });
+    }
+  }
 
-  // Iterate over fetched jobs to compare and decide action
+  // Step 3: Add new jobs to the database or update existing ones if details have changed
   fetchedJobs.forEach(job => {
-    console.log(`Checking job ${job.jobId}...`);
-
-    const existingJob = openJobsInFirestore[job.jobId];
+    const existingJob = openJobs[job.jobId];
+    const jobRef = collectionRef.doc(job.jobId);
 
     if (existingJob) {
-      // If job exists, check for changes
-      const hasChanged = checkIfJobChanged(existingJob, job);
-      if (hasChanged) jobsToAddOrUpdate.push(job);
-
-      delete openJobsInFirestore[job.jobId];  // Mark job as processed
+      // If the job exists, check if it has changed
+      if (checkIfJobChanged(existingJob, job)) {
+        console.log(`Updating job ${job.jobId}...`);
+        batch.set(jobRef, { ...job, open: true }, { merge: true });
+      } else {
+        console.log(`No changes detected for job ${job.jobId}.`);
+      }
     } else {
       // New job, needs to be added
-      jobsToAddOrUpdate.push(job);
+      batch.set(jobRef, { ...job, open: true }, { merge: true });
       console.log(`New job ${job.jobId} added.`);
     }
   });
 
-  // Close jobs that are no longer listed on the website
-  Object.keys(openJobsInFirestore).forEach(jobId => {
-    console.log(`Closing job ${jobId} that is no longer listed.`);
-    const jobRef = collectionRef.doc(jobId);
-    batch.update(jobRef, { open: false, closedAt: new Date() });
-    jobsToClose.push(jobId);
-  });
-
-  // Add or update jobs in Firestore
-  await saveJobsToFirestore(company, jobsToAddOrUpdate, batch);
-
+  // Step 4: Commit batch update
   await batch.commit();
-  console.log(`Processed ${jobsToAddOrUpdate.length} jobs (added/updated) and closed ${jobsToClose.length} jobs.`);
-}
-
-// Save jobs to Firestore (with batch support)
-export async function saveJobsToFirestore(company, jobs, batch = null) {
-  console.log(`Saving jobs for ${company}...`);
-
-  const collectionRef = db.collection(company);
-
-  for (const job of jobs) {
-    console.log(`Saving job ${job.jobId}...`);
-
-    try {
-      const jobDocRef = collectionRef.doc(job.jobId);  // Use Firestore collection
-      const jobData = {
-        title: job.title,
-        description: job.description,
-        datePosted: job.datePosted,
-        employmentType: job.employmentType,
-        validThrough: job.validThrough,
-        hiringOrganizationName: job.hiringOrganization?.name,
-        jobLocation: job.jobLocation,
-        foundAt: new Date(),
-      };
-
-      if (batch) {
-        batch.set(jobDocRef, jobData, { merge: true });  // Add to the batch if provided
-      } else {
-        await jobDocRef.set(jobData, { merge: true });  // Directly save if no batch
-      }
-      console.log(`Job ${job.jobId} saved successfully.`);
-    } catch (error) {
-      console.error(`Error saving job ${job.jobId}:`, error);
-    }
-  }
-
-  console.log(`Finished saving jobs for ${company}`);
+  console.log(`Jobs successfully updated for ${company}.`);
 }
 
 // Check if job details have changed
@@ -114,4 +76,25 @@ function checkIfJobChanged(existingJob, newJob) {
   return existingJob.title !== newJob.title ||
          existingJob.location !== newJob.location ||
          existingJob.compensation !== newJob.compensation;
+}
+
+
+// Fetch a specific job from the database
+export async function fetchJobFromDB(company, jobId) {
+  const docRef = db.collection(company).doc(jobId);
+  const doc = await docRef.get();
+
+  if (!doc.exists) {
+    console.log(`No job found for jobId: ${jobId}`);
+    return null;
+  }
+
+  return doc.data();  // Returns the job data
+}
+
+// Update job details in the database if they differ from the existing data
+export async function updateJobDetails(company, jobId, newDetails) {
+  const jobRef = db.collection(company).doc(jobId);
+  await jobRef.update(newDetails);
+  console.log(`Updated job details for jobId: ${jobId}`);
 }

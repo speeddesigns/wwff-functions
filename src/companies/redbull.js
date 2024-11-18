@@ -1,62 +1,55 @@
-import { fetchOpenJobs, updateJobsWithOpenCloseLogic } from '../db.js';
+import { load } from 'cheerio';
+import { 
+  fetchHTML, 
+  extractJobDetails, 
+  createJobFetcher,
+  extractSalaryFromDisclaimer 
+} from '../utils/utilities.js';
 import { FIRESTORE_JOB_FIELDS } from '../utils/firestore-fields.js';
 
 const COMPANY = 'Red Bull';
 const API_URL = 'https://jobs.redbull.com/api/search?pageSize=1000000&locale=en&country=us';
 const BASE_JOB_URL = 'https://jobs.redbull.com/us-en/';
 
-// Fetch job listings from Red Bull
-export async function fetchRedBullJobs() {
-  console.log(`Starting Red Bull job fetch at ${new Date().toISOString()}`);
-
+// Custom Red Bull job detail extraction strategy
+async function redBullJobDetailExtraction(html, url) {
   try {
-    // Step 1: Get current jobs from Red Bull's API
-    const { jobs: apiJobs } = await captureRedBullOpenRoles();
-    console.log(`Found ${apiJobs.length} jobs from Red Bull API`);
-
-    // Step 2: Get current jobs from Firestore
-    const firestoreJobs = await fetchOpenJobs(COMPANY);
-    console.log(`Found ${Object.keys(firestoreJobs).length} jobs in Firestore`);
-
-    // Step 3: Compare lists and prepare updates
-    const updates = [];
-    const jobsToCheck = new Set();
-
-    // Add or reopen jobs from API
-    for (const job of apiJobs) {
-      const existingJob = firestoreJobs[job.jobId];
-      if (!existingJob) {
-        // New job
-        updates.push({
-          ...job,
-          [FIRESTORE_JOB_FIELDS.OPEN_STATUS]: true,
-          [FIRESTORE_JOB_FIELDS.FOUND_DATE]: new Date().toISOString(),
-          isNew: true
-        });
-      } else if (!existingJob[FIRESTORE_JOB_FIELDS.OPEN_STATUS]) {
-        // Existing job that needs to be reopened
-        updates.push({
-          ...existingJob,
-          ...job,
-          [FIRESTORE_JOB_FIELDS.OPEN_STATUS]: true,
-          reopened: true
-        });
-      }
-      jobsToCheck.add(job.jobId);
+    // Find the Next.js data script
+    const $ = load(html);
+    const nextDataScript = $('script#__NEXT_DATA__').html();
+    
+    if (!nextDataScript) {
+      console.error('No Next.js data script found for job details');
+      return null;
     }
 
-    // Step 4: Update Firestore with new and reopened jobs
-    if (updates.length > 0) {
-      console.log(`Updating ${updates.length} jobs in Firestore`);
-      await updateJobsWithOpenCloseLogic(COMPANY, updates);
+    // Parse the JSON data
+    const nextData = JSON.parse(nextDataScript);
+    const jobDetails = nextData.props?.pageProps?.pageProps?.job;
+
+    if (!jobDetails) {
+      console.error('Job details not found in Next.js data');
+      return null;
     }
 
-    console.log('Job fetching and updating complete');
-    return { jobs: apiJobs, company: COMPANY };
+    // Extract salary information from legal disclaimer
+    const salaryInfo = extractSalaryFromDisclaimer(jobDetails.legalDisclaimer);
 
+    // Extract and map job details
+    return {
+      title: jobDetails.title || '',
+      description: jobDetails.description || '',
+      location: jobDetails.locations ? jobDetails.locations.map(loc => loc.name).join(', ') : '',
+      employmentType: jobDetails.employmentType || jobDetails.jobType || '',
+      createdAt: jobDetails.createdAt || '',
+      jobId: jobDetails.id ? jobDetails.id.toString() : '',
+      source: jobDetails.source || '',
+      slug: jobDetails.slug || '',
+      ...salaryInfo  // Spread salary information
+    };
   } catch (error) {
-    console.error('Error during Red Bull job processing:', error);
-    throw error;
+    console.error('Error parsing Red Bull job details:', error);
+    return null;
   }
 }
 
@@ -85,3 +78,11 @@ async function captureRedBullOpenRoles() {
     throw error;
   }
 }
+
+// Create Red Bull job fetcher using the generic job fetcher
+export const fetchRedBullJobs = createJobFetcher({
+  company: COMPANY,
+  fetchJobList: captureRedBullOpenRoles,
+  extractJobDetails: (url) => extractJobDetails(url, BASE_JOB_URL, redBullJobDetailExtraction),
+  baseUrl: BASE_JOB_URL
+});

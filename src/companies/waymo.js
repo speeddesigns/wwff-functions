@@ -1,6 +1,10 @@
 import { load } from 'cheerio';
-import { fetchHTML, extractSalaryFromDescription, randomizedDelay } from '../utils/utilities.js';
-import { fetchOpenJobs, updateJobsWithOpenCloseLogic } from '../db.js';
+import { 
+  fetchHTML, 
+  extractJobDetails, 
+  randomizedDelay, 
+  createJobFetcher 
+} from '../utils/utilities.js';
 import { FIRESTORE_JOB_FIELDS } from '../utils/firestore-fields.js';
 
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
@@ -10,93 +14,30 @@ const COMPANY = 'Waymo';
 const MIN_DELAY = 30; // 30 seconds
 const MAX_DELAY = 60; // 60 seconds
 
-// Fetch job listings from Waymo
-export async function fetchWaymoJobs() {
-  console.log(`Starting Waymo job fetch at ${new Date().toISOString()}`);
+// Custom Waymo job detail extraction strategy
+async function waymoJobDetailExtraction(html, url) {
+  const $ = load(html);
+  const ldJsonScript = $('script[type="application/ld+json"]').html();
+  
+  if (!ldJsonScript) {
+    console.error('No JSON-LD script found for job details');
+    return null;
+  }
 
   try {
-    // Step 1: Get current jobs from Waymo's website
-    const { jobs: websiteJobs } = await captureWaymoOpenRoles();
-    console.log(`Found ${websiteJobs.length} jobs on Waymo's website`);
-
-    // Step 2: Get current jobs from Firestore
-    const firestoreJobs = await fetchOpenJobs(COMPANY);
-    console.log(`Found ${Object.keys(firestoreJobs).length} jobs in Firestore`);
-
-    // Step 3: Compare lists and prepare updates
-    const updates = [];
-    const jobsToCheck = new Set();
-
-    // Add or reopen jobs from website
-    for (const job of websiteJobs) {
-      const existingJob = firestoreJobs[job.jobId];
-      if (!existingJob) {
-        // New job
-        updates.push({
-          ...job,
-          [FIRESTORE_JOB_FIELDS.OPEN_STATUS]: true,
-          [FIRESTORE_JOB_FIELDS.FOUND_DATE]: new Date().toISOString(),
-          isNew: true
-        });
-      } else if (!existingJob[FIRESTORE_JOB_FIELDS.OPEN_STATUS]) {
-        // Existing job that needs to be reopened
-        updates.push({
-          ...existingJob,
-          ...job,
-          [FIRESTORE_JOB_FIELDS.OPEN_STATUS]: true,
-          reopened: true
-        });
-      }
-      jobsToCheck.add(job.jobId);
-    }
-
-    // Step 4: Update Firestore with new and reopened jobs
-    if (updates.length > 0) {
-      console.log(`Updating ${updates.length} jobs in Firestore`);
-      await updateJobsWithOpenCloseLogic(COMPANY, updates);
-      
-      // Wait before proceeding to detailed checks
-      console.log('Waiting before checking job details...');
-      await randomizedDelay(MIN_DELAY, MAX_DELAY);
-    }
-
-    // Step 5: Check each job's details one by one with delays
-    console.log('Starting detailed job checks...');
-    for (const jobId of jobsToCheck) {
-      const job = websiteJobs.find(j => j.jobId === jobId);
-      if (!job) continue;
-
-      console.log(`Checking details for job ${jobId}`);
-      const jobDetails = await fetchJobDetails(job.url);
-
-      if (jobDetails && typeof jobDetails === 'object') {
-        const updatedJob = {
-          ...job,
-          ...jobDetails,
-          jobId: job.jobId,
-          [FIRESTORE_JOB_FIELDS.URL]: job.url,
-          [FIRESTORE_JOB_FIELDS.COMP_START_RANGE]: jobDetails.compStart,
-          [FIRESTORE_JOB_FIELDS.COMP_MID_RANGE]: jobDetails.compMid,
-          [FIRESTORE_JOB_FIELDS.COMP_END_RANGE]: jobDetails.compEnd
-        };
-        
-        // Update if details have changed
-        await updateJobsWithOpenCloseLogic(COMPANY, [updatedJob]);
-      }
-
-      // Add delay between job detail checks
-      if (jobsToCheck.size > 1) {
-        console.log('Waiting before next job check...');
-        await randomizedDelay(MIN_DELAY, MAX_DELAY);
-      }
-    }
-
-    console.log('Job fetching and updating complete');
-    return { jobs: websiteJobs, company: COMPANY };
-
+    const jobDetailsJson = JSON.parse(ldJsonScript);
+    return {
+      title: jobDetailsJson.title || '',
+      description: jobDetailsJson.description || '',
+      location: jobDetailsJson.jobLocation?.address?.addressLocality || '',
+      employmentType: jobDetailsJson.employmentType || '',
+      hiringOrganization: jobDetailsJson.hiringOrganization?.name || '',
+      datePosted: jobDetailsJson.datePosted || '',
+      validThrough: jobDetailsJson.validThrough || ''
+    };
   } catch (error) {
-    console.error('Error during Waymo job processing:', error);
-    throw error;
+    console.error('Error parsing Waymo job JSON-LD:', error);
+    return null;
   }
 }
 
@@ -173,24 +114,12 @@ function parseWaymoJobs(html) {
   return jobs;
 }
 
-// Fetch individual job details from job page
-async function fetchJobDetails(jobUrl) {
-  const jobHtml = await fetchHTML(jobUrl, baseWaymoJobsUrl, true);
-
-  const jobDetailsJson = parseJobJsonLd(jobHtml);
-  console.log(jobDetailsJson);
-
-  if (!jobDetailsJson || !jobDetailsJson.description) {
-    console.error('Job details JSON or description is missing');
-    return null;
-  }
-
-  return jobDetailsJson;
-}
-
-// Parse JSON-LD data from job page
-function parseJobJsonLd(html) {
-  const $ = load(html);
-  const ldJsonScript = $('script[type="application/ld+json"]').html();
-  return JSON.parse(ldJsonScript);
-}
+// Create Waymo job fetcher using the generic job fetcher
+export const fetchWaymoJobs = createJobFetcher({
+  company: COMPANY,
+  fetchJobList: captureWaymoOpenRoles,
+  extractJobDetails: (url) => extractJobDetails(url, baseWaymoJobsUrl, waymoJobDetailExtraction),
+  baseUrl: baseWaymoJobsUrl,
+  minDelay: MIN_DELAY,
+  maxDelay: MAX_DELAY
+});

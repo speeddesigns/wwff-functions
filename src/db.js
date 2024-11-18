@@ -100,13 +100,16 @@ function checkIfJobChanged(existingJob, newJob) {
     'title',
     'url',
     'description',
-    'salary',
     'location',
     'employmentType',
     'datePosted',
     'validThrough',
     'hiringOrganization',
-    'jobLocation'
+    'jobFamily',
+    'department',
+    'compStart',
+    'compMid',
+    'compEnd'
   ];
 
   return fieldsToCompare.some(field => {

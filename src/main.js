@@ -41,6 +41,31 @@ async function importJobFetchers() {
   return jobFetchers;
 }
 
+// Process jobs for a single company
+async function processCompanyJobs(companyName, fetchFunction) {
+  try {
+    console.log(`Fetching jobs for ${companyName}`);
+    const result = await fetchFunction();
+    
+    // Update jobs in Firestore
+    await updateJobsWithOpenCloseLogic(companyName, result.jobs);
+    
+    return {
+      company: companyName,
+      jobCount: result.jobs.length,
+      status: 'success'
+    };
+  } catch (error) {
+    console.error(`Error processing jobs for ${companyName}:`, error);
+    return {
+      company: companyName,
+      jobCount: 0,
+      status: 'error',
+      error: error.message
+    };
+  }
+}
+
 // Pub/Sub-triggered job-fetching route (POST)
 app.post('/', async (req, res) => {
   console.log('Received Pub/Sub trigger');
@@ -50,25 +75,27 @@ app.post('/', async (req, res) => {
     const jobFetchers = await importJobFetchers();
     console.log('Job fetchers found:', Object.keys(jobFetchers));
 
-    // Fetch and update jobs for each company
-    const jobResults = [];
-    for (const [companyName, fetchFunction] of Object.entries(jobFetchers)) {
-      console.log(`Fetching jobs for ${companyName}`);
-      const result = await fetchFunction();
-      
-      // Update jobs in Firestore
-      await updateJobsWithOpenCloseLogic(companyName, result.jobs);
-      
-      jobResults.push({
-        company: companyName,
-        jobCount: result.jobs.length
-      });
-    }
+    // Process jobs for all companies concurrently
+    const jobResults = await Promise.allSettled(
+      Object.entries(jobFetchers).map(([companyName, fetchFunction]) => 
+        processCompanyJobs(companyName, fetchFunction)
+      )
+    );
+
+    // Filter and log results
+    const processedResults = jobResults.map(result => 
+      result.status === 'fulfilled' ? result.value : result.reason
+    );
+
+    const successfulCompanies = processedResults.filter(r => r.status === 'success');
+    const failedCompanies = processedResults.filter(r => r.status === 'error');
 
     console.log('Job fetching tasks complete.');
     res.status(200).json({
-      message: 'Job fetching and updating completed successfully',
-      results: jobResults
+      message: 'Job fetching and updating completed',
+      successfulCompanies: successfulCompanies.length,
+      failedCompanies: failedCompanies.length,
+      results: processedResults
     });
   } catch (error) {
     console.error('Error during job fetching or updating:', error);

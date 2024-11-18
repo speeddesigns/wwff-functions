@@ -1,14 +1,9 @@
 import { fetchOpenJobs, updateJobsWithOpenCloseLogic } from '../db.js';
 import { FIRESTORE_JOB_FIELDS } from '../utils/firestore-fields.js';
-import { randomizedDelay } from '../utils/utilities.js';
 
 const COMPANY = 'Red Bull';
 const API_URL = 'https://jobs.redbull.com/api/search?pageSize=1000000&locale=en&country=us';
 const BASE_JOB_URL = 'https://jobs.redbull.com/us-en/';
-
-// Minimum delay between requests to avoid bot detection
-const MIN_DELAY = 30; // 30 seconds
-const MAX_DELAY = 60; // 60 seconds
 
 // Fetch job listings from Red Bull
 export async function fetchRedBullJobs() {
@@ -54,10 +49,6 @@ export async function fetchRedBullJobs() {
     if (updates.length > 0) {
       console.log(`Updating ${updates.length} jobs in Firestore`);
       await updateJobsWithOpenCloseLogic(COMPANY, updates);
-      
-      // Wait before proceeding to detailed checks
-      console.log('Waiting before checking job details...');
-      await randomizedDelay(MIN_DELAY, MAX_DELAY);
     }
 
     console.log('Job fetching and updating complete');

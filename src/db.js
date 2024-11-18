@@ -98,7 +98,7 @@ export async function updateJobsWithOpenCloseLogic(company, fetchedJobs = []) {
 function checkIfJobChanged(existingJob, newJob) {
   const fieldsToCompare = [
     'title',
-    'link',
+    'url',
     'description',
     'salary',
     'location',

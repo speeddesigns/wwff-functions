@@ -64,7 +64,7 @@ export async function fetchWaymoJobs() {
       if (!job) continue;
 
       console.log(`Checking details for job ${jobId}`);
-      const jobDetails = await fetchJobDetails(job.link);
+      const jobDetails = await fetchJobDetails(job.url);
 
       if (jobDetails && typeof jobDetails === 'object') {
         const updatedJob = {
@@ -153,10 +153,10 @@ function parseWaymoJobs(html) {
   $('.job-search-results-card').each((index, element) => {
     const jobId = $(element).find('.job-component-details').attr('class').split('-').pop();
     const title = $(element).find('.job-search-results-card-title a').text().trim();
-    const link = $(element).find('.job-search-results-card-title a').attr('href');
+    const url = $(element).find('.job-search-results-card-title a').attr('href');
 
-    jobs.push({ jobId, title, link });
-    console.log(`Parsed job ${jobId}: ${title}, ${link}`)
+    jobs.push({ jobId, title, url });
+    console.log(`Parsed job ${jobId}: ${title}, ${url}`)
   });
 
   return jobs;

@@ -1,97 +1,195 @@
 import { Firestore } from '@google-cloud/firestore';
+import logger from './utils/logger.js';
+import { 
+  JobFetchError, 
+  retryOperation,
+  validateJobData 
+} from './utils/error-handling.js';
 
 export const db = new Firestore();
 
-// Fetch all jobs for a given company
+// Fetch all jobs for a given company with enhanced error handling
 export async function fetchOpenJobs(company) {
-  console.log(`Fetching jobs for ${company}...`);
+  try {
+    logger.info(`Fetching jobs for ${company}`);
 
-  const collectionRef = db.collection(company);
-  const querySnapshot = await collectionRef.get();
+    const collectionRef = db.collection(company);
+    const querySnapshot = await retryOperation(
+      () => collectionRef.get(),
+      { 
+        maxRetries: 3, 
+        baseDelay: 1000 
+      }
+    );
 
-  const jobs = {};
-  querySnapshot.forEach(doc => {
-    jobs[doc.data().jobId] = {
-      ...doc.data(),
-      firestoreDocId: doc.id
-    };
-  });
-  console.log(`Fetched ${Object.keys(jobs).length} jobs for ${company}`);
+    const jobs = {};
+    const invalidJobs = [];
 
-  return jobs;  // Returns an object mapping jobId to job data
+    querySnapshot.forEach(doc => {
+      const jobData = doc.data();
+      
+      try {
+        // Validate job data during fetch
+        const validatedJob = validateJobData({
+          ...jobData,
+          firestoreDocId: doc.id
+        });
+
+        jobs[validatedJob.jobId] = validatedJob;
+      } catch (validationError) {
+        logger.warn('Skipping invalid job during fetch', {
+          jobId: jobData.jobId,
+          error: validationError.message
+        });
+        invalidJobs.push({
+          jobData,
+          error: validationError.message
+        });
+      }
+    });
+
+    if (invalidJobs.length > 0) {
+      logger.error('Some jobs were invalid during fetch', {
+        company,
+        invalidJobCount: invalidJobs.length
+      });
+    }
+
+    logger.info(`Fetched ${Object.keys(jobs).length} valid jobs for ${company}`, {
+      validJobCount: Object.keys(jobs).length,
+      invalidJobCount: invalidJobs.length
+    });
+
+    return jobs;
+  } catch (error) {
+    logger.error(`Error fetching jobs for ${company}`, {
+      error: error.message,
+      stack: error.stack
+    });
+    throw new JobFetchError(`Failed to fetch jobs for ${company}`, { 
+      company, 
+      originalError: error 
+    });
+  }
 }
 
 // Update jobs by adding new roles, reopening existing ones, and updating changed details
 export async function updateJobsWithOpenCloseLogic(company, fetchedJobs = []) {
-  console.log(`Checking jobs for updates for ${company}...`);
+  try {
+    logger.info(`Checking jobs for updates for ${company}`);
 
-  if (!fetchedJobs || fetchedJobs.length === 0) {
-    console.log('No jobs fetched to update.');
-    return;
-  }
-
-  const batch = db.batch();
-  const now = Firestore.Timestamp.now();
-
-  // Step 1: Fetch all jobs from the database
-  const existingJobs = await fetchOpenJobs(company);
-
-  // Step 2: Process each fetched job
-  fetchedJobs.forEach(job => {
-    const existingJob = existingJobs[job.jobId];
-    let jobRef;
-
-    if (existingJob) {
-      // Use existing document reference
-      jobRef = db.collection(company).doc(existingJob.firestoreDocId);
-    } else {
-      // Create new document reference
-      jobRef = db.collection(company).doc();
+    if (!fetchedJobs || fetchedJobs.length === 0) {
+      logger.warn('No jobs fetched to update');
+      return;
     }
 
-    const jobData = {
-      ...job,
-      company,
-      open: true,
-      lastSeen: now
-    };
+    const batch = db.batch();
+    const now = Firestore.Timestamp.now();
 
-    if (!existingJob) {
-      // New job
-      jobData.found = now;
-      console.log(`Adding new job ${job.jobId}`);
-    } else if (!existingJob.open) {
-      // Reopened job
-      console.log(`Reopening job ${job.jobId}`);
-      jobData.reopenedAt = now;
-    } else if (checkIfJobChanged(existingJob, job)) {
-      // Updated job
-      console.log(`Updating changed job ${job.jobId}`);
-    } else {
-      // Just update lastSeen
-      console.log(`Updating lastSeen for job ${job.jobId}`);
+    // Step 1: Fetch all jobs from the database
+    const existingJobs = await fetchOpenJobs(company);
+
+    // Validate all fetched jobs before processing
+    const validatedJobs = fetchedJobs.map(validateJobData);
+
+    // Step 2: Process each fetched job
+    const updates = [];
+    const errors = [];
+
+    validatedJobs.forEach(job => {
+      const existingJob = existingJobs[job.jobId];
+      let jobRef;
+
+      try {
+        if (existingJob) {
+          // Use existing document reference
+          jobRef = db.collection(company).doc(existingJob.firestoreDocId);
+        } else {
+          // Create new document reference
+          jobRef = db.collection(company).doc();
+        }
+
+        const jobData = {
+          ...job,
+          company,
+          open: true,
+          lastSeen: now
+        };
+
+        if (!existingJob) {
+          // New job
+          jobData.found = now;
+          logger.info(`Adding new job ${job.jobId}`);
+        } else if (!existingJob.open) {
+          // Reopened job
+          logger.info(`Reopening job ${job.jobId}`);
+          jobData.reopenedAt = now;
+        } else if (checkIfJobChanged(existingJob, job)) {
+          // Updated job
+          logger.info(`Updating changed job ${job.jobId}`);
+        } else {
+          // Just update lastSeen
+          logger.debug(`Updating lastSeen for job ${job.jobId}`);
+        }
+
+        batch.set(jobRef, jobData, { merge: true });
+        updates.push(job);
+      } catch (updateError) {
+        logger.error(`Error processing job ${job.jobId}`, {
+          error: updateError.message,
+          job
+        });
+        errors.push({
+          jobId: job.jobId,
+          error: updateError.message
+        });
+      }
+    });
+
+    // Step 3: Mark jobs as closed if they're not in fetchedJobs
+    const fetchedJobIds = new Set(validatedJobs.map(job => job.jobId));
+    for (const jobId in existingJobs) {
+      const existingJob = existingJobs[jobId];
+      if (!fetchedJobIds.has(jobId) && existingJob.open) {
+        logger.info(`Marking job ${jobId} as closed`);
+        const jobRef = db.collection(company).doc(existingJob.firestoreDocId);
+        batch.update(jobRef, { 
+          open: false,
+          closedAt: now
+        });
+      }
     }
 
-    batch.set(jobRef, jobData, { merge: true });
-  });
+    // Step 4: Commit batch update with retry mechanism
+    await retryOperation(
+      () => batch.commit(),
+      { 
+        maxRetries: 3, 
+        baseDelay: 1500 
+      }
+    );
 
-  // Step 3: Mark jobs as closed if they're not in fetchedJobs
-  const fetchedJobIds = new Set(fetchedJobs.map(job => job.jobId));
-  for (const jobId in existingJobs) {
-    const existingJob = existingJobs[jobId];
-    if (!fetchedJobIds.has(jobId) && existingJob.open) {
-      console.log(`Marking job ${jobId} as closed`);
-      const jobRef = db.collection(company).doc(existingJob.firestoreDocId);
-      batch.update(jobRef, { 
-        open: false,
-        closedAt: now
+    logger.info(`Jobs successfully updated for ${company}`, {
+      updatedJobCount: updates.length,
+      errorCount: errors.length
+    });
+
+    if (errors.length > 0) {
+      throw new JobFetchError('Some jobs failed to update', {
+        company,
+        errors
       });
     }
+  } catch (error) {
+    logger.error(`Error updating jobs for ${company}`, {
+      error: error.message,
+      stack: error.stack
+    });
+    throw new JobFetchError(`Failed to update jobs for ${company}`, { 
+      company, 
+      originalError: error 
+    });
   }
-
-  // Step 4: Commit batch update
-  await batch.commit();
-  console.log(`Jobs successfully updated for ${company}`);
 }
 
 // Check if job details have changed

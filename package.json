@@ -5,7 +5,11 @@
   "main": "src/main.js",
   "type": "module",
   "scripts": {
-    "start": "node src/main.js"
+    "start": "NODE_ENV=production node src/main.js",
+    "dev": "NODE_ENV=development LOG_LEVEL=debug node src/main.js",
+    "test": "NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js",
+    "lint": "eslint .",
+    "prepare": "mkdir -p logs"
   },
   "dependencies": {
     "@google-cloud/firestore": "^7.10.0",
@@ -13,11 +17,32 @@
     "axios-cookiejar-support": "^5.0.3",
     "cheerio": "^1.0.0",
     "express": "^4.17.1",
-    "tough-cookie": "^5.0.0"
+    "tough-cookie": "^5.0.0",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "eslint": "^8.0.0",
+    "jest": "^27.0.0"
   },
   "engines": {
     "node": ">=18.0.0"
   },
   "author": "Sean Dooley",
-  "license": "MIT"
+  "license": "MIT",
+  "config": {
+    "port": 8080,
+    "logLevel": "info",
+    "companies": {
+      "waymo": {
+        "enabled": true,
+        "maxJobsPerFetch": 100,
+        "fetchInterval": 86400000
+      },
+      "redbull": {
+        "enabled": true,
+        "maxJobsPerFetch": 50,
+        "fetchInterval": 86400000
+      }
+    }
+  }
 }

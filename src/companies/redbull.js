@@ -1,88 +1,88 @@
+import axios from 'axios';
 import { load } from 'cheerio';
-import { 
-  fetchHTML, 
-  extractJobDetails, 
-  createJobFetcher,
-  extractSalaryFromDisclaimer 
-} from '../utils/utilities.js';
-import { FIRESTORE_JOB_FIELDS } from '../utils/firestore-fields.js';
+import logger from '../utils/logger.js';
 
-const COMPANY = 'Red Bull';
-const API_URL = 'https://jobs.redbull.com/api/search?pageSize=1000000&locale=en&country=us';
-const BASE_JOB_URL = 'https://jobs.redbull.com/us-en/';
+const MIN_DELAY = 1000; // 1 second
+const MAX_DELAY = 3000; // 3 seconds
 
-// Custom Red Bull job detail extraction strategy
-async function redBullJobDetailExtraction(html, url) {
-  try {
-    // Find the Next.js data script
-    const $ = load(html);
-    const nextDataScript = $('script#__NEXT_DATA__').html();
-    
-    if (!nextDataScript) {
-      console.error('No Next.js data script found for job details');
-      return null;
-    }
-
-    // Parse the JSON data
-    const nextData = JSON.parse(nextDataScript);
-    const jobDetails = nextData.props?.pageProps?.pageProps?.job;
-
-    if (!jobDetails) {
-      console.error('Job details not found in Next.js data');
-      return null;
-    }
-
-    // Extract salary information from legal disclaimer
-    const salaryInfo = extractSalaryFromDisclaimer(jobDetails.legalDisclaimer);
-
-    // Extract and map job details
-    return {
-      title: jobDetails.title || '',
-      description: jobDetails.description || '',
-      location: jobDetails.locations ? jobDetails.locations.map(loc => loc.name).join(', ') : '',
-      employmentType: jobDetails.employmentType || jobDetails.jobType || '',
-      createdAt: jobDetails.createdAt || '',
-      jobId: jobDetails.id ? jobDetails.id.toString() : '',
-      source: jobDetails.source || '',
-      slug: jobDetails.slug || '',
-      ...salaryInfo  // Spread salary information
-    };
-  } catch (error) {
-    console.error('Error parsing Red Bull job details:', error);
-    return null;
-  }
+// Randomized delay to avoid rate limiting
+function randomizedDelay(min, max) {
+  return new Promise(resolve => {
+    const delay = Math.floor(Math.random() * (max - min + 1)) + min;
+    setTimeout(resolve, delay);
+  });
 }
 
-// Function to capture open roles from Red Bull's API
-async function captureRedBullOpenRoles() {
+export async function fetchRedbullJobs() {
   try {
-    const response = await fetch(API_URL);
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
+    const baseUrl = 'https://redbull.com/careers/';
+    const jobsPerPage = 10;
+    let page = 1;
+    let totalJobs = 0;
+    const jobs = [];
+
+    while (true) {
+      const pageUrl = `${baseUrl}?page=${page}`;
+      logger.info(`Fetching jobs from ${pageUrl}`);
+
+      const response = await axios.get(pageUrl);
+      const pageHtml = response.data;
+
+      const parsedJobs = parseRedbullJobs(pageHtml);
+      
+      if (parsedJobs.length === 0) break;
+
+      jobs.push(...parsedJobs);
+      totalJobs += parsedJobs.length;
+
+      logger.info(`Parsed ${parsedJobs.length} jobs from page ${page}`);
+
+      // Add delay between page fetches
+      logger.debug('Waiting before fetching next page...');
+      await randomizedDelay(MIN_DELAY, MAX_DELAY);
+
+      page++;
     }
-    const data = await response.json();
 
-    // Transform jobs to match expected format
-    const jobs = data.jobs.map(job => ({
-      jobId: job.id.toString(),
-      [FIRESTORE_JOB_FIELDS.TITLE]: job.title,
-      [FIRESTORE_JOB_FIELDS.URL]: `${BASE_JOB_URL}${job.slug}`,
-      [FIRESTORE_JOB_FIELDS.EMPLOYMENT_TYPE]: job.employmentType,
-      [FIRESTORE_JOB_FIELDS.LOCATION]: job.locationText
-    }));
+    const totalPages = Math.ceil(totalJobs / jobsPerPage);
+    logger.info(`Total jobs: ${totalJobs}, jobs per page: ${jobsPerPage}, total pages: ${totalPages}`);
 
-    return { jobs, company: COMPANY };
-
+    return { jobs, totalJobs, totalPages };
   } catch (error) {
-    console.error('Error fetching jobs from Red Bull:', error);
+    logger.error('Error fetching Redbull jobs', {
+      error: error.message,
+      stack: error.stack
+    });
     throw error;
   }
 }
 
-// Create Red Bull job fetcher using the generic job fetcher
-export const fetchRedBullJobs = createJobFetcher({
-  company: COMPANY,
-  fetchJobList: captureRedBullOpenRoles,
-  extractJobDetails: (url) => extractJobDetails(url, BASE_JOB_URL, redBullJobDetailExtraction),
-  baseUrl: BASE_JOB_URL
-});
+function parseRedbullJobs(html) {
+  logger.debug('Parsing jobs...');
+  const $ = load(html);
+  const jobs = [];
+
+  $('.job-listing').each((index, element) => {
+    const title = $(element).find('.job-title').text().trim();
+    const url = $(element).find('a.job-link').attr('href');
+    const jobId = url.split('/').pop();
+    const location = $(element).find('.job-location').text().trim();
+    const department = $(element).find('.job-department').text().trim();
+
+    if (title && url) {
+      const job = {
+        jobId,
+        title,
+        url: `https://redbull.com${url}`,
+        location,
+        department,
+        company: 'Redbull'
+      };
+
+      jobs.push(job);
+      logger.debug(`Parsed job ${jobId}: ${title}, ${url}`);
+    }
+  });
+
+  return jobs;
+}

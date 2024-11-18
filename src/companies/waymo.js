@@ -1,73 +1,99 @@
 import { load } from 'cheerio';
 import { fetchHTML, extractSalaryFromDescription, randomizedDelay } from '../utils/utilities.js';
-import { fetchJobFromDB, updateJobDetails } from '../db.js';
+import { fetchOpenJobs, updateJobsWithOpenCloseLogic } from '../db.js';
 
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
-const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-const BUFFER_TIME_IN_MS = 60 * 60 * 1000; // 1 hour buffer time in milliseconds
 const COMPANY = 'Waymo';
 
-// Fetch job listings from Waymo once a day, timestamp the start, and distribute job detail fetching over the day
+// Minimum delay between requests to avoid bot detection
+const MIN_DELAY = 30; // 30 seconds
+const MAX_DELAY = 60; // 60 seconds
+
+// Fetch job listings from Waymo
 export async function fetchWaymoJobs() {
-  const scriptStartTime = new Date();
-  console.log(`Script started at ${scriptStartTime.toISOString()}`);
+  console.log(`Starting Waymo job fetch at ${new Date().toISOString()}`);
 
   try {
-    // Step 1: Capture open roles
-    const jobData = await captureWaymoOpenRoles();
-    const openRoles = jobData.jobs;
-    const numOpenRoles = openRoles.length;
+    // Step 1: Get current jobs from Waymo's website
+    const { jobs: websiteJobs } = await captureWaymoOpenRoles();
+    console.log(`Found ${websiteJobs.length} jobs on Waymo's website`);
 
-    console.log(`Captured ${numOpenRoles} open roles for Waymo.`);
+    // Step 2: Get current jobs from Firestore
+    const firestoreJobs = await fetchOpenJobs(COMPANY);
+    console.log(`Found ${Object.keys(firestoreJobs).length} jobs in Firestore`);
 
-    // Step 2: Calculate time left for job detail fetching
-    const timeLeftInDay = ONE_DAY_IN_MS - (new Date() - scriptStartTime) - BUFFER_TIME_IN_MS;
-    const interval = Math.floor(timeLeftInDay / numOpenRoles);
+    // Step 3: Compare lists and prepare updates
+    const updates = [];
+    const jobsToCheck = new Set();
 
-    console.log(`Calculated base interval of ${interval / 1000} seconds per job detail retrieval.`);
+    // Add or reopen jobs from website
+    for (const job of websiteJobs) {
+      const existingJob = firestoreJobs[job.jobId];
+      if (!existingJob) {
+        // New job
+        updates.push({
+          ...job,
+          isNew: true
+        });
+      } else if (!existingJob.open) {
+        // Existing job that needs to be reopened
+        updates.push({
+          ...existingJob,
+          ...job,
+          open: true,
+          reopened: true
+        });
+      }
+      jobsToCheck.add(job.jobId);
+    }
 
-    // Step 3: Fetch details for each job one by one and update if necessary
-    for (let i = 0; i < numOpenRoles; i++) {
-      const job = openRoles[i];
+    // Step 4: Update Firestore with new and reopened jobs
+    if (updates.length > 0) {
+      console.log(`Updating ${updates.length} jobs in Firestore`);
+      await updateJobsWithOpenCloseLogic(COMPANY, updates);
+      
+      // Wait before proceeding to detailed checks
+      console.log('Waiting before checking job details...');
+      await randomizedDelay(MIN_DELAY, MAX_DELAY);
+    }
 
-      // Fetch details for this job
-      console.log(`Fetching details for job ${job.jobId}: ${job.title}`);
+    // Step 5: Check each job's details one by one with delays
+    console.log('Starting detailed job checks...');
+    for (const jobId of jobsToCheck) {
+      const job = websiteJobs.find(j => j.jobId === jobId);
+      if (!job) continue;
+
+      console.log(`Checking details for job ${jobId}`);
       const jobDetails = await fetchJobDetails(job.link);
 
       if (jobDetails && typeof jobDetails === 'object') {
-        console.log(`Checking if details for job ${job.jobId} need updating...`);
+        const updatedJob = {
+          ...job,
+          ...jobDetails,
+          jobId: job.jobId
+        };
         
-        // Check if the details in the database differ from what we fetched
-        const existingJob = await fetchJobFromDB(job.jobId, COMPANY);
-        
-        if (JSON.stringify(existingJob) !== JSON.stringify(jobDetails)) {
-          console.log(`Updating details for job ${job.jobId}: ${job.title}`);
-          await updateJobDetails(job.jobId, COMPANY, jobDetails);
-        } else {
-          console.log(`Details for job ${job.jobId} are already up to date.`);
-        }
-      } else {
-        console.log(`Skipping job ${job.jobId} due to invalid details.`);
+        // Update if details have changed
+        await updateJobsWithOpenCloseLogic(COMPANY, [updatedJob]);
       }
 
-      // Randomized delay before fetching the next job's details
-      const twoMin = 2*60*1000;
-      const minDelay = interval - twoMin;
-      const maxDelay = interval + twoMin;
-
-      console.log(`Waiting for a randomized delay between ${minDelay / 1000} and ${maxDelay / 1000} seconds...`);
-      await randomizedDelay(minDelay / 1000, maxDelay / 1000); // Convert ms to seconds
+      // Add delay between job detail checks
+      if (jobsToCheck.size > 1) {
+        console.log('Waiting before next job check...');
+        await randomizedDelay(MIN_DELAY, MAX_DELAY);
+      }
     }
 
-    return { jobs: openRoles, company: COMPANY };
+    console.log('Job fetching and updating complete');
+    return { jobs: websiteJobs, company: COMPANY };
 
   } catch (error) {
-    console.error('Error during Waymo job capture:', error);
+    console.error('Error during Waymo job processing:', error);
     throw error;
   }
 }
 
-// Function to capture open roles
+// Function to capture open roles from Waymo's website
 async function captureWaymoOpenRoles() {
   try {
     let allJobs = [];
@@ -86,8 +112,11 @@ async function captureWaymoOpenRoles() {
       // Check if there are more pages
       const { totalPages } = getPaginationInfo(pageHtml);
       if (page >= totalPages) break;
+      
       page++;
-      await randomizedDelay(15, 30);
+      // Add delay between page fetches
+      console.log('Waiting before fetching next page...');
+      await randomizedDelay(MIN_DELAY, MAX_DELAY);
     }
 
     return { jobs: allJobs, company: COMPANY };
@@ -108,7 +137,7 @@ function getPaginationInfo(html) {
   const totalJobs = totalJobsMatch ? parseInt(totalJobsMatch[1], 10) : 0;
 
   // Calculate the number of jobs per page (usually 30)
-  const jobsPerPage = 30; // Assuming it's always 30, unless it changes
+  const jobsPerPage = 30;
 
   const totalPages = Math.ceil(totalJobs / jobsPerPage);
   console.log(`Total jobs: ${totalJobs}, jobs per page: ${jobsPerPage}, total pages: ${totalPages}`);
@@ -135,11 +164,10 @@ function parseWaymoJobs(html) {
 
 // Fetch individual job details from job page
 async function fetchJobDetails(jobUrl) {
-  const jobHtml = await fetchHTML(jobUrl, baseWaymoJobsUrl,true);
-  // console.log(jobHtml);  // Print the full HTML to inspect
+  const jobHtml = await fetchHTML(jobUrl, baseWaymoJobsUrl, true);
 
   const jobDetailsJson = parseJobJsonLd(jobHtml);
-  console.log(jobDetailsJson);  // Log the extracted JSON-LD
+  console.log(jobDetailsJson);
 
   if (!jobDetailsJson || !jobDetailsJson.description) {
     console.error('Job details JSON or description is missing');

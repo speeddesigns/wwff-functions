@@ -1,6 +1,6 @@
 import express from 'express';
 import { fetchWaymoJobs } from './companies/waymo.js';
-import { fetchCompanies, updateJobsWithOpenCloseLogic } from './db.js';
+import { updateJobsWithOpenCloseLogic } from './db.js';
 
 const app = express();
 
@@ -17,24 +17,15 @@ app.post('/', async (req, res) => {
   console.log('Received Pub/Sub trigger');
 
   try {
-    // Get list of companies to fetch jobs for
-    const companies = await fetchCompanies();
-    
-    // Process each company
-    for (const company of companies) {
-      console.log(`Starting job fetching for ${company}...`);
-      
-      // For now we only have Waymo implemented
-      if (company.toLowerCase() === 'waymo') {
-        const { jobs } = await fetchWaymoJobs();
-        console.log(`Updating jobs for ${company} in Firestore...`);
-        await updateJobsWithOpenCloseLogic(company, jobs);
-      } else {
-        console.log(`No job fetcher implemented for ${company} yet`);
-      }
-    }
+    // Fetch jobs from Waymo
+    console.log('Starting job fetching for Waymo...');
+    const { jobs } = await fetchWaymoJobs();
 
-    console.log('All job-fetching tasks complete.');
+    // Save or update jobs in Firestore
+    console.log('Updating Waymo jobs in Firestore...');
+    await updateJobsWithOpenCloseLogic('Waymo', jobs);
+
+    console.log('Job fetching tasks complete.');
     res.status(200).send('Job fetching and updating completed successfully');
   } catch (error) {
     console.error('Error during job fetching or updating:', error);

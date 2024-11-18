@@ -14,7 +14,7 @@ app.use(errorHandler);
 app.use(notFoundHandler);
 
 // Start the Express server and listen on the configured port
-const port = config.get('app.port');
+const port = process.env.PORT || config.get('app.port');
 app.listen(port, () => {
   logger.info(`Server is listening on port ${port}`, {
     environment: config.get('app.environment'),

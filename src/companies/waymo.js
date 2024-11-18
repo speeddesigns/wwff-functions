@@ -1,6 +1,7 @@
 import { load } from 'cheerio';
 import { fetchHTML, extractSalaryFromDescription, randomizedDelay } from '../utils/utilities.js';
 import { fetchOpenJobs, updateJobsWithOpenCloseLogic } from '../db.js';
+import { FIRESTORE_JOB_FIELDS } from '../utils/firestore-fields.js';
 
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 const COMPANY = 'Waymo';
@@ -33,14 +34,16 @@ export async function fetchWaymoJobs() {
         // New job
         updates.push({
           ...job,
+          [FIRESTORE_JOB_FIELDS.OPEN_STATUS]: true,
+          [FIRESTORE_JOB_FIELDS.FOUND_DATE]: new Date().toISOString(),
           isNew: true
         });
-      } else if (!existingJob.open) {
+      } else if (!existingJob[FIRESTORE_JOB_FIELDS.OPEN_STATUS]) {
         // Existing job that needs to be reopened
         updates.push({
           ...existingJob,
           ...job,
-          open: true,
+          [FIRESTORE_JOB_FIELDS.OPEN_STATUS]: true,
           reopened: true
         });
       }
@@ -70,7 +73,11 @@ export async function fetchWaymoJobs() {
         const updatedJob = {
           ...job,
           ...jobDetails,
-          jobId: job.jobId
+          jobId: job.jobId,
+          [FIRESTORE_JOB_FIELDS.URL]: job.url,
+          [FIRESTORE_JOB_FIELDS.COMP_START_RANGE]: jobDetails.compStart,
+          [FIRESTORE_JOB_FIELDS.COMP_MID_RANGE]: jobDetails.compMid,
+          [FIRESTORE_JOB_FIELDS.COMP_END_RANGE]: jobDetails.compEnd
         };
         
         // Update if details have changed
@@ -155,7 +162,11 @@ function parseWaymoJobs(html) {
     const title = $(element).find('.job-search-results-card-title a').text().trim();
     const url = $(element).find('.job-search-results-card-title a').attr('href');
 
-    jobs.push({ jobId, title, url });
+    jobs.push({ 
+      jobId, 
+      [FIRESTORE_JOB_FIELDS.TITLE]: title, 
+      [FIRESTORE_JOB_FIELDS.URL]: url 
+    });
     console.log(`Parsed job ${jobId}: ${title}, ${url}`)
   });
 
@@ -173,10 +184,6 @@ async function fetchJobDetails(jobUrl) {
     console.error('Job details JSON or description is missing');
     return null;
   }
-
-  const salaryData = extractSalaryFromDescription(jobDetailsJson.description);
-  jobDetailsJson.salary = salaryData;
-  console.log(jobDetailsJson.salary);
 
   return jobDetailsJson;
 }

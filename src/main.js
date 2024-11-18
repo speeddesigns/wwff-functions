@@ -1,6 +1,6 @@
 import express from 'express';
-import { fetchWaymoJobs } from './companies/waymo.js';  // Updated to match the new function name
-import { updateJobsWithOpenCloseLogic } from './db.js';  // Updated to match the correct function
+import { fetchWaymoJobs } from './companies/waymo.js';
+import { fetchCompanies, updateJobsWithOpenCloseLogic } from './db.js';
 
 const app = express();
 
@@ -17,13 +17,22 @@ app.post('/', async (req, res) => {
   console.log('Received Pub/Sub trigger');
 
   try {
-    // Fetch jobs from Waymo
-    console.log('Starting job fetching for Waymo...');
-    const { jobs, company } = await fetchWaymoJobs();  // Updated function call
-
-    // Save or update jobs in Firestore
-    console.log(`Updating jobs for ${company} in Firestore...`);
-    await updateJobsWithOpenCloseLogic(jobs);  // Updated function call
+    // Get list of companies to fetch jobs for
+    const companies = await fetchCompanies();
+    
+    // Process each company
+    for (const company of companies) {
+      console.log(`Starting job fetching for ${company}...`);
+      
+      // For now we only have Waymo implemented
+      if (company.toLowerCase() === 'waymo') {
+        const { jobs } = await fetchWaymoJobs();
+        console.log(`Updating jobs for ${company} in Firestore...`);
+        await updateJobsWithOpenCloseLogic(company, jobs);
+      } else {
+        console.log(`No job fetcher implemented for ${company} yet`);
+      }
+    }
 
     console.log('All job-fetching tasks complete.');
     res.status(200).send('Job fetching and updating completed successfully');
@@ -34,7 +43,6 @@ app.post('/', async (req, res) => {
 });
 
 export default app;
-
 
 // Start the Express server and listen on the Cloud Run-provided port
 const port = process.env.PORT || 8080;

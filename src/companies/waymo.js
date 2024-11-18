@@ -1,10 +1,11 @@
 import { load } from 'cheerio';
 import { fetchHTML, extractSalaryFromDescription, randomizedDelay } from '../utils/utilities.js';
-import { updateJobsWithOpenCloseLogic,fetchJobFromDB, updateJobDetails  } from '../db.js';  // Updated to match the correct function
+import { fetchJobFromDB, updateJobDetails } from '../db.js';
 
 const baseWaymoJobsUrl = 'https://careers.withwaymo.com/jobs/search';
 const ONE_DAY_IN_MS = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 const BUFFER_TIME_IN_MS = 60 * 60 * 1000; // 1 hour buffer time in milliseconds
+const COMPANY = 'Waymo';
 
 // Fetch job listings from Waymo once a day, timestamp the start, and distribute job detail fetching over the day
 export async function fetchWaymoJobs() {
@@ -19,16 +20,13 @@ export async function fetchWaymoJobs() {
 
     console.log(`Captured ${numOpenRoles} open roles for Waymo.`);
 
-    // Step 2: Update database with new roles and close any missing jobs
-    await updateJobsWithOpenCloseLogic(openRoles);  // Implemented in db.js
-
-    // Step 3: Calculate time left for job detail fetching
+    // Step 2: Calculate time left for job detail fetching
     const timeLeftInDay = ONE_DAY_IN_MS - (new Date() - scriptStartTime) - BUFFER_TIME_IN_MS;
     const interval = Math.floor(timeLeftInDay / numOpenRoles);
 
     console.log(`Calculated base interval of ${interval / 1000} seconds per job detail retrieval.`);
 
-    // Step 4: Fetch details for each job one by one and update if necessary
+    // Step 3: Fetch details for each job one by one and update if necessary
     for (let i = 0; i < numOpenRoles; i++) {
       const job = openRoles[i];
 
@@ -40,11 +38,11 @@ export async function fetchWaymoJobs() {
         console.log(`Checking if details for job ${job.jobId} need updating...`);
         
         // Check if the details in the database differ from what we fetched
-        const existingJob = await fetchJobFromDB(job.jobId);  // Get job from database (implement in db.js)
+        const existingJob = await fetchJobFromDB(job.jobId, COMPANY);
         
         if (JSON.stringify(existingJob) !== JSON.stringify(jobDetails)) {
           console.log(`Updating details for job ${job.jobId}: ${job.title}`);
-          await updateJobDetails(job.jobId, jobDetails);  // Update the database with new details
+          await updateJobDetails(job.jobId, COMPANY, jobDetails);
         } else {
           console.log(`Details for job ${job.jobId} are already up to date.`);
         }
@@ -61,14 +59,12 @@ export async function fetchWaymoJobs() {
       await randomizedDelay(minDelay / 1000, maxDelay / 1000); // Convert ms to seconds
     }
 
+    return { jobs: openRoles, company: COMPANY };
+
   } catch (error) {
     console.error('Error during Waymo job capture:', error);
     throw error;
   }
-
-  // Step 5: Buffer before the next run
-  console.log(`Execution completed. Sleeping until the next scheduled run...`);
-  await sleepUntilNextRun('00:00'); // Sleep until midnight for the next run
 }
 
 // Function to capture open roles
@@ -94,7 +90,7 @@ async function captureWaymoOpenRoles() {
       await randomizedDelay(15, 30);
     }
 
-    return { jobs: allJobs, company: 'Waymo' };
+    return { jobs: allJobs, company: COMPANY };
 
   } catch (error) {
     console.error('Error fetching jobs from Waymo:', error);

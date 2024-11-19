@@ -34,32 +34,44 @@ export async function fetchRedbullJobs() {
 }
 
 async function fetchRedbullJobDetails(slug) {
-  try {
-    const response = await axios.get(`${REDBULL_JOB_BASE_URL}${slug}`);
-    const $ = load(response.data);
-    const scriptTag = $('#__NEXT_DATA__');
-    const jobData = JSON.parse(scriptTag.html());
-    const job = jobData.props.pageProps.pageProps.job;
+  const MAX_RETRIES = 3;
+  let retryCount = 0;
 
-    const locations = job.locations.map(loc => loc.locationText).join('; ');
-    const salary = parseSalaryFromLegalDisclaimer(job.legalDisclaimer);
+  while (retryCount < MAX_RETRIES) {
+    try {
+      const response = await axios.get(`${REDBULL_JOB_BASE_URL}${slug}`);
+      const $ = load(response.data);
+      const scriptTag = $('#__NEXT_DATA__');
+      const jobData = JSON.parse(scriptTag.html());
+      const job = jobData.props.pageProps.pageProps.job;
 
-    return {
-      createdAt: job.createdAt,
-      source: job.source,
-      description: job.description,
-      experiences: job.experiences,
-      education: job.education,
-      legalDisclaimer: job.legalDisclaimer,
-      locations,
-      salary
-    };
-  } catch (error) {
-    console.error('Error fetching Redbull job details', {
-      error: error.message,
-      stack: error.stack
-    });
-    throw error;
+      const locations = job.locations.map(loc => loc.locationText).join('; ');
+      const salary = parseSalaryFromLegalDisclaimer(job.legalDisclaimer);
+
+      return {
+        createdAt: job.createdAt,
+        source: job.source,
+        description: job.description,
+        experiences: job.experiences,
+        education: job.education,
+        legalDisclaimer: job.legalDisclaimer,
+        locations,
+        salary
+      };
+    } catch (error) {
+      console.error('Error fetching Redbull job details', {
+        error: error.message,
+        stack: error.stack
+      });
+
+      retryCount++;
+      if (retryCount === MAX_RETRIES) {
+        throw error;
+      } else {
+        console.log(`Retrying Redbull job details fetch (attempt ${retryCount}/${MAX_RETRIES})`);
+        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retrying
+      }
+    }
   }
 }
 

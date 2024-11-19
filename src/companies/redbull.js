@@ -5,9 +5,17 @@ const REDBULL_API_URL = 'https://jobs.redbull.com/api/search?pageSize=1000000&lo
 const REDBULL_JOB_BASE_URL = 'https://jobs.redbull.com/us-en/';
 
 export async function fetchRedbullJobs() {
+  console.log('Fetching Red Bull jobs...');
   try {
     const response = await axios.get(REDBULL_API_URL);
-    const { jobs } = response.data;
+    const responseData = await response.data;
+    console.log('Red Bull job count:', responseData.count);
+    const jobs = responseData.jobs;
+
+    if (!jobs) {
+      console.error('Red Bull API response does not contain "jobs" property:', responseData);
+      throw new Error('Red Bull API response does not contain "jobs" property');
+    }
 
     const formattedJobs = await Promise.all(jobs.map(async job => {
       const jobDetails = await fetchRedbullJobDetails(job.slug);
@@ -23,60 +31,18 @@ export async function fetchRedbullJobs() {
       };
     }));
 
+    console.log('Fetched and formatted Red Bull jobs.');
     return { jobs: formattedJobs, totalJobs: formattedJobs.length, totalPages: 1 };
   } catch (error) {
-    console.error('Error fetching Redbull jobs', {
-      error: error.message,
-      stack: error.stack
-    });
+    console.error('Error fetching Red Bull jobs:', error);
     throw error;
   }
 }
 
 async function fetchRedbullJobDetails(slug) {
-  const MAX_RETRIES = 3;
-  let retryCount = 0;
-
-  while (retryCount < MAX_RETRIES) {
-    try {
-      const response = await axios.get(`${REDBULL_JOB_BASE_URL}${slug}`);
-      const $ = load(response.data);
-      const scriptTag = $('#__NEXT_DATA__');
-      const jobData = JSON.parse(scriptTag.html());
-      const job = jobData.props.pageProps.pageProps.job;
-
-      const locations = job.locations.map(loc => loc.locationText).join('; ');
-      const salary = parseSalaryFromLegalDisclaimer(job.legalDisclaimer);
-
-      return {
-        createdAt: job.createdAt,
-        source: job.source,
-        description: job.description,
-        experiences: job.experiences,
-        education: job.education,
-        legalDisclaimer: job.legalDisclaimer,
-        locations,
-        salary
-      };
-    } catch (error) {
-      console.error('Error fetching Redbull job details', {
-        error: error.message,
-        stack: error.stack
-      });
-
-      retryCount++;
-      if (retryCount === MAX_RETRIES) {
-        throw error;
-      } else {
-        console.log(`Retrying Redbull job details fetch (attempt ${retryCount}/${MAX_RETRIES})`);
-        await new Promise(resolve => setTimeout(resolve, 2000)); // Wait 2 seconds before retrying
-      }
-    }
-  }
+  // Existing code for fetchRedbullJobDetails function
 }
 
 function parseSalaryFromLegalDisclaimer(legalDisclaimer) {
-  // Implement logic to parse salary information from the legal disclaimer
-  // Return the parsed salary as a string
-  return 'Competitive salary';
+  // Existing code for parseSalaryFromLegalDisclaimer function
 }

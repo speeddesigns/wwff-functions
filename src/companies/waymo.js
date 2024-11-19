@@ -1,3 +1,5 @@
+console.log('Executing src/companies/waymo.js');
+
 import axios from 'axios';
 import { load } from 'cheerio';
 
@@ -13,6 +15,7 @@ function randomizedDelay(min, max) {
 }
 
 export async function fetchWaymoJobs() {
+  console.log('Executing fetchWaymoJobs');
   try {
     const baseUrl = 'https://waymo.com/careers/';
     const jobsPerPage = 10;
@@ -45,6 +48,7 @@ export async function fetchWaymoJobs() {
 
     const totalPages = Math.ceil(totalJobs / jobsPerPage);
     console.log(`Total jobs: ${totalJobs}, jobs per page: ${jobsPerPage}, total pages: ${totalPages}`);
+    console.log('Finished executing fetchWaymoJobs');
 
     return { jobs, totalJobs, totalPages };
   } catch (error) {
@@ -57,7 +61,7 @@ export async function fetchWaymoJobs() {
 }
 
 function parseWaymoJobs(html) {
-  console.log('Parsing jobs...');
+  console.log('Executing parseWaymoJobs');
   const $ = load(html);
   const jobs = [];
 
@@ -83,5 +87,6 @@ function parseWaymoJobs(html) {
     }
   });
 
+  console.log('Finished executing parseWaymoJobs');
   return jobs;
 }

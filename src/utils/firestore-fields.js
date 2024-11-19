@@ -1,3 +1,5 @@
+console.log('Executing src/utils/firestore-fields.js');
+
 /**
  * Centralized Firestore fields for job-related data
  * These fields are designed to be consistent across different companies

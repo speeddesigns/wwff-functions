@@ -3,6 +3,8 @@ import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
 
+console.log('Executing src/main.js');
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -17,6 +19,7 @@ app.listen(port, () => {
 
 // Handle Pub/Sub event
 app.post('/', async (req, res) => {
+    console.log('Received Pub/Sub event, processing job fetching...');
     try {
         // Dynamically load and execute the job fetching functions for each company
         const companiesDir = path.join(__dirname, 'companies');
@@ -27,6 +30,7 @@ app.post('/', async (req, res) => {
                 const companyName = path.basename(file, '.js');
                 const functionName = `fetch${companyName.replace(/(\w)(\w*)/g, (_, p1, p2) => p1.toUpperCase() + p2.toLowerCase())}Jobs`;
                 const filePath = path.join(companiesDir, file);
+                console.log(`Executing job fetching function for ${companyName}`);
                 const { [functionName]: fetchCompanyJobs } = await import(filePath);
                 await fetchCompanyJobs();
             }

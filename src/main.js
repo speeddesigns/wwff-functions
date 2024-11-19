@@ -24,9 +24,11 @@ app.post('/', async (req, res) => {
 
         for (const file of files) {
             if (file.endsWith('.js')) {
+                const companyName = path.basename(file, '.js');
+                const functionName = `fetch${companyName.replace(/(\w)(\w*)/g, (_, p1, p2) => p1.toUpperCase() + p2.toLowerCase())}Jobs`;
                 const filePath = path.join(companiesDir, file);
-                const { fetchJobs } = await import(filePath);
-                await fetchJobs();
+                const { [functionName]: fetchCompanyJobs } = await import(filePath);
+                await fetchCompanyJobs();
             }
         }
 

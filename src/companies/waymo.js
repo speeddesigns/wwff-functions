@@ -17,7 +17,7 @@ function randomizedDelay(min, max) {
 export async function fetchWaymoJobs() {
   console.log('Executing fetchWaymoJobs');
   try {
-    const baseUrl = 'https://waymo.com/careers/';
+    const baseUrl = 'https://careers.withwaymo.com/jobs/search';
     const jobsPerPage = 10;
     let page = 1;
     let totalJobs = 0;
@@ -30,7 +30,9 @@ export async function fetchWaymoJobs() {
       const response = await axios.get(pageUrl);
       const pageHtml = response.data;
 
-      const parsedJobs = parseWaymoJobs(pageHtml);
+
+
+      const parsedJobs = await parseWaymoJobs(pageHtml);
       
       if (parsedJobs.length === 0) break;
 
@@ -60,7 +62,7 @@ export async function fetchWaymoJobs() {
   }
 }
 
-function parseWaymoJobs(html) {
+async function parseWaymoJobs(html) {
   console.log('Executing parseWaymoJobs');
   const $ = load(html);
   const jobs = [];
@@ -84,6 +86,8 @@ function parseWaymoJobs(html) {
 
       jobs.push(job);
       console.log(`Parsed job ${jobId}: ${title}, ${url}`);
+    } else {
+      console.error(`Error parsing job from element: ${$(element).html()}`);
     }
   });
 

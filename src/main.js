@@ -15,7 +15,7 @@ app.listen(port, () => {
 app.post('/', async (req, res) => {
     try {
         // Dynamically import and call all company-specific job fetching functions
-        const companiesDir = join('src', 'companies');
+        const companiesDir = join('../src', 'companies');
         const companyFiles = readdirSync(companiesDir);
 
         for (const file of companyFiles) {

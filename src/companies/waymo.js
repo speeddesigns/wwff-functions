@@ -22,7 +22,7 @@ export async function fetchWaymoJobs() {
 
     while (true) {
       const pageUrl = `${baseUrl}?page=${page}`;
-      logger.info(`Fetching jobs from ${pageUrl}`);
+      console.log(`Fetching jobs from ${pageUrl}`);
 
       const response = await axios.get(pageUrl);
       const pageHtml = response.data;
@@ -34,21 +34,21 @@ export async function fetchWaymoJobs() {
       jobs.push(...parsedJobs);
       totalJobs += parsedJobs.length;
 
-      logger.info(`Parsed ${parsedJobs.length} jobs from page ${page}`);
+      console.log(`Parsed ${parsedJobs.length} jobs from page ${page}`);
 
       // Add delay between page fetches
-      logger.debug('Waiting before fetching next page...');
+      console.log('Waiting before fetching next page...');
       await randomizedDelay(MIN_DELAY, MAX_DELAY);
 
       page++;
     }
 
     const totalPages = Math.ceil(totalJobs / jobsPerPage);
-    logger.info(`Total jobs: ${totalJobs}, jobs per page: ${jobsPerPage}, total pages: ${totalPages}`);
+    console.log(`Total jobs: ${totalJobs}, jobs per page: ${jobsPerPage}, total pages: ${totalPages}`);
 
     return { jobs, totalJobs, totalPages };
   } catch (error) {
-    logger.error('Error fetching Waymo jobs', {
+    console.error('Error fetching Waymo jobs', {
       error: error.message,
       stack: error.stack
     });
@@ -57,7 +57,7 @@ export async function fetchWaymoJobs() {
 }
 
 function parseWaymoJobs(html) {
-  logger.debug('Parsing jobs...');
+  console.log('Parsing jobs...');
   const $ = load(html);
   const jobs = [];
 
@@ -79,7 +79,7 @@ function parseWaymoJobs(html) {
       };
 
       jobs.push(job);
-      logger.debug(`Parsed job ${jobId}: ${title}, ${url}`);
+      console.log(`Parsed job ${jobId}: ${title}, ${url}`);
     }
   });
 

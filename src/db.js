@@ -5,7 +5,7 @@ export const db = new Firestore();
 // Fetch all jobs for a given company with enhanced error handling
 export async function fetchOpenJobs(company) {
   try {
-    logger.info(`Fetching jobs for ${company}`);
+    console.log(`Fetching jobs for ${company}`);
 
     const collectionRef = db.collection(company);
     const querySnapshot = await retryOperation(
@@ -31,7 +31,7 @@ export async function fetchOpenJobs(company) {
 
         jobs[validatedJob.jobId] = validatedJob;
       } catch (validationError) {
-        logger.warn('Skipping invalid job during fetch', {
+        console.warn('Skipping invalid job during fetch', {
           jobId: jobData.jobId,
           error: validationError.message
         });
@@ -43,20 +43,20 @@ export async function fetchOpenJobs(company) {
     });
 
     if (invalidJobs.length > 0) {
-      logger.error('Some jobs were invalid during fetch', {
+      console.error('Some jobs were invalid during fetch', {
         company,
         invalidJobCount: invalidJobs.length
       });
     }
 
-    logger.info(`Fetched ${Object.keys(jobs).length} valid jobs for ${company}`, {
+    console.log(`Fetched ${Object.keys(jobs).length} valid jobs for ${company}`, {
       validJobCount: Object.keys(jobs).length,
       invalidJobCount: invalidJobs.length
     });
 
     return jobs;
   } catch (error) {
-    logger.error(`Error fetching jobs for ${company}`, {
+    console.error(`Error fetching jobs for ${company}`, {
       error: error.message,
       stack: error.stack
     });
@@ -70,10 +70,10 @@ export async function fetchOpenJobs(company) {
 // Update jobs by adding new roles, reopening existing ones, and updating changed details
 export async function updateJobsWithOpenCloseLogic(company, fetchedJobs = []) {
   try {
-    logger.info(`Checking jobs for updates for ${company}`);
+    console.log(`Checking jobs for updates for ${company}`);
 
     if (!fetchedJobs || fetchedJobs.length === 0) {
-      logger.warn('No jobs fetched to update');
+      console.warn('No jobs fetched to update');
       return;
     }
 
@@ -113,23 +113,23 @@ export async function updateJobsWithOpenCloseLogic(company, fetchedJobs = []) {
         if (!existingJob) {
           // New job
           jobData.found = now;
-          logger.info(`Adding new job ${job.jobId}`);
+          console.log(`Adding new job ${job.jobId}`);
         } else if (!existingJob.open) {
           // Reopened job
-          logger.info(`Reopening job ${job.jobId}`);
+          console.log(`Reopening job ${job.jobId}`);
           jobData.reopenedAt = now;
         } else if (checkIfJobChanged(existingJob, job)) {
           // Updated job
-          logger.info(`Updating changed job ${job.jobId}`);
+          console.log(`Updating changed job ${job.jobId}`);
         } else {
           // Just update lastSeen
-          logger.debug(`Updating lastSeen for job ${job.jobId}`);
+          console.debug(`Updating lastSeen for job ${job.jobId}`);
         }
 
         batch.set(jobRef, jobData, { merge: true });
         updates.push(job);
       } catch (updateError) {
-        logger.error(`Error processing job ${job.jobId}`, {
+        console.error(`Error processing job ${job.jobId}`, {
           error: updateError.message,
           job
         });
@@ -145,7 +145,7 @@ export async function updateJobsWithOpenCloseLogic(company, fetchedJobs = []) {
     for (const jobId in existingJobs) {
       const existingJob = existingJobs[jobId];
       if (!fetchedJobIds.has(jobId) && existingJob.open) {
-        logger.info(`Marking job ${jobId} as closed`);
+        console.log(`Marking job ${jobId} as closed`);
         const jobRef = db.collection(company).doc(existingJob.firestoreDocId);
         batch.update(jobRef, { 
           open: false,
@@ -163,7 +163,7 @@ export async function updateJobsWithOpenCloseLogic(company, fetchedJobs = []) {
       }
     );
 
-    logger.info(`Jobs successfully updated for ${company}`, {
+    console.log(`Jobs successfully updated for ${company}`, {
       updatedJobCount: updates.length,
       errorCount: errors.length
     });
@@ -175,7 +175,7 @@ export async function updateJobsWithOpenCloseLogic(company, fetchedJobs = []) {
       });
     }
   } catch (error) {
-    logger.error(`Error updating jobs for ${company}`, {
+    console.error(`Error updating jobs for ${company}`, {
       error: error.message,
       stack: error.stack
     });

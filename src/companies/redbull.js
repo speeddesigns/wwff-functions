@@ -1,6 +1,5 @@
 import axios from 'axios';
 import { load } from 'cheerio';
-import logger from '../utils/logger.js';
 
 const MIN_DELAY = 1000; // 1 second
 const MAX_DELAY = 3000; // 3 seconds

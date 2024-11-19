@@ -1,10 +1,4 @@
 import { Firestore } from '@google-cloud/firestore';
-import logger from './utils/logger.js';
-import { 
-  JobFetchError, 
-  retryOperation,
-  validateJobData 
-} from './utils/error-handling.js';
 
 export const db = new Firestore();
 

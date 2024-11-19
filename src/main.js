@@ -1,24 +1,41 @@
 import express from 'express';
-import logger from './utils/logger.js';
 import config from './config/index.js';
-import jobRouter from './routes/job.routes.js';
-import logger from './utils/logger';
-
-logger.info('Application starting...');
+import { readdirSync } from 'fs';
+import { join } from 'path';
 
 const app = express();
 
-// Middleware
 app.use(express.json());
-app.use('/api/jobs', jobRouter);
 
-// Start the Express server and listen on the configured port
 const port = config.get('app.port');
 app.listen(port, () => {
-  logger.info(`Server is listening on port ${port}`, {
-    environment: config.get('app.environment'),
-    appName: config.get('app.name')
-  });
+    console.log(`Server is running on port ${port}`);
+});
+
+// Handle Pub/Sub event
+app.post('/pubsub', async (req, res) => {
+    try {
+        // Dynamically import and call all company-specific job fetching functions
+        const companiesDir = join(__dirname, 'companies');
+        const companyFiles = readdirSync(companiesDir);
+
+        for (const file of companyFiles) {
+            if (file.endsWith('.js')) {
+                const module = await import(join(companiesDir, file));
+                const jobFetchingFunction = Object.values(module).find(
+                    (value) => typeof value === 'function' && value.name.startsWith('fetch')
+                );
+                if (jobFetchingFunction) {
+                    await jobFetchingFunction();
+                }
+            }
+        }
+
+        res.status(200).send('Job capturing complete');
+    } catch (error) {
+        console.error('Error handling Pub/Sub event:', error);
+        res.status(500).send('Error handling Pub/Sub event');
+    }
 });
 
 export default app;

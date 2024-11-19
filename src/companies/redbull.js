@@ -1,52 +1,29 @@
 import axios from 'axios';
 import { load } from 'cheerio';
 
-const MIN_DELAY = 1000; // 1 second
-const MAX_DELAY = 3000; // 3 seconds
-
-// Randomized delay to avoid rate limiting
-function randomizedDelay(min, max) {
-  return new Promise(resolve => {
-    const delay = Math.floor(Math.random() * (max - min + 1)) + min;
-    setTimeout(resolve, delay);
-  });
-}
+const REDBULL_API_URL = 'https://jobs.redbull.com/api/search?pageSize=1000000&locale=en&country=us';
+const REDBULL_JOB_BASE_URL = 'https://jobs.redbull.com/us-en/';
 
 export async function fetchRedbullJobs() {
   try {
-    const baseUrl = 'https://redbull.com/careers/';
-    const jobsPerPage = 10;
-    let page = 1;
-    let totalJobs = 0;
-    const jobs = [];
+    const response = await axios.get(REDBULL_API_URL);
+    const { jobs } = response.data;
 
-    while (true) {
-      const pageUrl = `${baseUrl}?page=${page}`;
-      console.log(`Fetching jobs from ${pageUrl}`);
+    const formattedJobs = await Promise.all(jobs.map(async job => {
+      const jobDetails = await fetchRedbullJobDetails(job.slug);
+      return {
+        id: job.id,
+        title: job.title,
+        function: job.function.name,
+        locationText: job.locationText,
+        slug: job.slug,
+        employmentType: job.employmentType,
+        url: `${REDBULL_JOB_BASE_URL}${job.slug}`,
+        ...jobDetails
+      };
+    }));
 
-      const response = await axios.get(pageUrl);
-      const pageHtml = response.data;
-
-      const parsedJobs = parseRedbullJobs(pageHtml);
-      
-      if (parsedJobs.length === 0) break;
-
-      jobs.push(...parsedJobs);
-      totalJobs += parsedJobs.length;
-
-      console.log(`Parsed ${parsedJobs.length} jobs from page ${page}`);
-
-      // Add delay between page fetches
-      console.log('Waiting before fetching next page...');
-      await randomizedDelay(MIN_DELAY, MAX_DELAY);
-
-      page++;
-    }
-
-    const totalPages = Math.ceil(totalJobs / jobsPerPage);
-    console.log(`Total jobs: ${totalJobs}, jobs per page: ${jobsPerPage}, total pages: ${totalPages}`);
-
-    return { jobs, totalJobs, totalPages };
+    return { jobs: formattedJobs, totalJobs: formattedJobs.length, totalPages: 1 };
   } catch (error) {
     console.error('Error fetching Redbull jobs', {
       error: error.message,
@@ -56,32 +33,38 @@ export async function fetchRedbullJobs() {
   }
 }
 
-function parseRedbullJobs(html) {
-  console.log('Parsing jobs...');
-  const $ = load(html);
-  const jobs = [];
+async function fetchRedbullJobDetails(slug) {
+  try {
+    const response = await axios.get(`${REDBULL_JOB_BASE_URL}${slug}`);
+    const $ = load(response.data);
+    const scriptTag = $('#__NEXT_DATA__');
+    const jobData = JSON.parse(scriptTag.html());
+    const job = jobData.props.pageProps.pageProps.job;
 
-  $('.job-listing').each((index, element) => {
-    const title = $(element).find('.job-title').text().trim();
-    const url = $(element).find('a.job-link').attr('href');
-    const jobId = url.split('/').pop();
-    const location = $(element).find('.job-location').text().trim();
-    const department = $(element).find('.job-department').text().trim();
+    const locations = job.locations.map(loc => loc.locationText).join('; ');
+    const salary = parseSalaryFromLegalDisclaimer(job.legalDisclaimer);
 
-    if (title && url) {
-      const job = {
-        jobId,
-        title,
-        url: `https://redbull.com${url}`,
-        location,
-        department,
-        company: 'Redbull'
-      };
+    return {
+      createdAt: job.createdAt,
+      source: job.source,
+      description: job.description,
+      experiences: job.experiences,
+      education: job.education,
+      legalDisclaimer: job.legalDisclaimer,
+      locations,
+      salary
+    };
+  } catch (error) {
+    console.error('Error fetching Redbull job details', {
+      error: error.message,
+      stack: error.stack
+    });
+    throw error;
+  }
+}
 
-      jobs.push(job);
-      console.log(`Parsed job ${jobId}: ${title}, ${url}`);
-    }
-  });
-
-  return jobs;
+function parseSalaryFromLegalDisclaimer(legalDisclaimer) {
+  // Implement logic to parse salary information from the legal disclaimer
+  // Return the parsed salary as a string
+  return 'Competitive salary';
 }

@@ -9,7 +9,8 @@
     "dev": "NODE_ENV=development LOG_LEVEL=debug node src/main.js",
     "test": "NODE_ENV=test node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "lint": "eslint .",
-    "prepare": "mkdir -p logs"
+    "prepare": "mkdir -p logs",
+    "deploy": "npm run start"
   },
   "dependencies": {
     "@google-cloud/firestore": "^7.10.0",

@@ -2,28 +2,16 @@ import logger from '../utils/logger.js';
 import config from '../config/index.js';
 import { 
   JobFetchError, 
-  NetworkError,
   retryOperation,
   validateJobData 
 } from '../utils/error-handling.js';
 import { updateJobsWithOpenCloseLogic } from '../db.js';
-import { createMetrics, incrementMetric, observeMetric } from '../utils/metrics.js';
 
 class JobService {
   constructor() {
     this.maxConcurrentFetches = config.get('jobFetching.maxConcurrentFetches');
     this.retryAttempts = config.get('jobFetching.retryAttempts');
     this.baseRetryDelay = config.get('jobFetching.baseRetryDelay');
-
-    // Initialize metrics
-    this.metrics = createMetrics({
-      jobsFetched: { type: 'counter', help: 'Total jobs fetched' },
-      jobsUpdated: { type: 'counter', help: 'Total jobs updated' },
-      fetchDuration: { type: 'histogram', help: 'Job fetch duration' },
-      updateDuration: { type: 'histogram', help: 'Job update duration' },
-      fetchErrors: { type: 'counter', help: 'Job fetch errors' },
-      updateErrors: { type: 'counter', help: 'Job update errors' }
-    });
   }
 
   async processCompanyJobs(companyName, { fetchFunction, config: companyConfig }) {
@@ -32,17 +20,8 @@ class JobService {
         maxJobsPerFetch: companyConfig.maxJobsPerFetch 
       });
 
-      const fetchStartTime = Date.now();
       const result = await this._fetchJobsWithRetry(fetchFunction, companyConfig);
-      const fetchDuration = Date.now() - fetchStartTime;
-      observeMetric(this.metrics.fetchDuration, fetchDuration);
-      incrementMetric(this.metrics.jobsFetched, result.jobs.length);
-
-      const updateStartTime = Date.now();
       await this._updateJobsWithRetry(companyName, result.jobs);
-      const updateDuration = Date.now() - updateStartTime;
-      observeMetric(this.metrics.updateDuration, updateDuration);
-      incrementMetric(this.metrics.jobsUpdated, result.jobs.length);
 
       logger.info(`Successfully processed jobs for ${companyName}`, {
         jobCount: result.jobs.length
@@ -54,29 +33,11 @@ class JobService {
         status: 'success'
       };
     } catch (error) {
-      if (error.name === 'JobFetchError') {
-        logger.error(`Error fetching jobs for ${companyName}`, {
-          error: error.message,
-          context: error.context,
-          stack: error.stack
-        });
-        incrementMetric(this.metrics.fetchErrors, 1);
-      } else if (error.name === 'NetworkError') {
-        logger.warn(`Network error fetching jobs for ${companyName}`, {
-          error: error.message,
-          context: error.context,
-          stack: error.stack
-        });
-        incrementMetric(this.metrics.fetchErrors, 1);
-      } else {
-        logger.error(`Unexpected error processing jobs for ${companyName}`, {
-          error: error.message,
-          type: error.name,
-          stack: error.stack
-        });
-        incrementMetric(this.metrics.fetchErrors, 1);
-        incrementMetric(this.metrics.updateErrors, 1);
-      }
+      logger.error(`Error processing jobs for ${companyName}`, {
+        error: error.message,
+        type: error.name,
+        stack: error.stack
+      });
 
       return {
         company: companyName,

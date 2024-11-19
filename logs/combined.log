@@ -1,0 +1,2 @@
+{"appName":"Job Fetcher","companies":["redbull","waymo"],"environment":"production","level":"info","logLevel":"info","message":"Configuration Loaded","service":"job-fetcher","timestamp":"2024-11-18 23:59:59"}
+{"appName":"Job Fetcher","environment":"production","level":"info","message":"Server is listening on port 8080","service":"job-fetcher","timestamp":"2024-11-19 00:00:00"}

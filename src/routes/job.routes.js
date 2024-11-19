@@ -3,7 +3,7 @@ import logger from '../utils/logger.js';
 import config from '../config/index.js';
 import jobService from '../services/job.service.js';
 import { asyncErrorHandler } from '../utils/error-handling.js';
-import { loadJobFetchers } from '../utils/job-loader.js';
+import { loadJobFetchers } from '../job-loader.js';  // Updated import path
 
 const router = Router();
 

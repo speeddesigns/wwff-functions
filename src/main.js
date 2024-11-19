@@ -12,7 +12,7 @@ app.listen(port, () => {
 });
 
 // Handle Pub/Sub event
-app.post('/pubsub', async (req, res) => {
+app.post('/', async (req, res) => {
     try {
         // Dynamically import and call all company-specific job fetching functions
         const companiesDir = join(__dirname, 'companies');

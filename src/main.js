@@ -1,6 +1,10 @@
 import express from 'express';
-import { readdirSync } from 'fs';
-import { join } from 'path';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 const app = express();
 
@@ -14,19 +18,15 @@ app.listen(port, () => {
 // Handle Pub/Sub event
 app.post('/', async (req, res) => {
     try {
-        // Dynamically import and call all company-specific job fetching functions
-        const companiesDir = join('../src', 'companies');
-        const companyFiles = readdirSync(companiesDir);
+        // Dynamically load and execute the job fetching functions for each company
+        const companiesDir = path.join(__dirname, 'companies');
+        const files = fs.readdirSync(companiesDir);
 
-        for (const file of companyFiles) {
+        for (const file of files) {
             if (file.endsWith('.js')) {
-                const module = await import(join(companiesDir, file));
-                const jobFetchingFunction = Object.values(module).find(
-                    (value) => typeof value === 'function' && value.name.startsWith('fetch')
-                );
-                if (jobFetchingFunction) {
-                    await jobFetchingFunction();
-                }
+                const filePath = path.join(companiesDir, file);
+                const { fetchJobs } = await import(filePath);
+                await fetchJobs();
             }
         }
 
